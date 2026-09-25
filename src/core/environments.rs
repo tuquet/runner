@@ -94,8 +94,8 @@ impl EnvironmentRegistry {
         let mut list: Vec<EnvironmentConfig> = envs.into_values().collect();
         list.sort_by(|a, b| {
             let order_key = |name: &str| match name {
-                "dev" => 0,
-                "local" => 1,
+                "local" => 0,
+                "dev" => 1,
                 "prod" => 2,
                 _ => 3,
             };

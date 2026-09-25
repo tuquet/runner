@@ -141,11 +141,11 @@ tqr env switch prod
 ### 3. Zero-Touch Cloud Enrollment
 Register your workstation with Tuquet Cloud for a specific environment:
 ```powershell
-# Enroll directly into Cloud Dev (default)
+# Enroll directly into Local Docker Supabase (default)
 tqr enroll
 
-# Enroll explicitly into Local or Custom Environment
-tqr enroll --env local
+# Enroll explicitly into Cloud Dev or Custom Environment
+tqr enroll --env dev
 tqr enroll --env prod
 
 # Override URL and key on the fly

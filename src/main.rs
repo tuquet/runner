@@ -80,8 +80,8 @@ enum Commands {
     },
     /// Enroll this machine with Tuquet Cloud (zero-touch device registration)
     Enroll {
-        /// Target environment: dev (default), local, or prod
-        #[arg(short, long, env = "TUQUET_ENV", default_value = "dev")]
+        /// Target environment: local (default), dev, or prod
+        #[arg(short, long, env = "TUQUET_ENV", default_value = "local")]
         env: String,
 
         /// Custom Tuquet Cloud / Supabase URL (overrides environment default)

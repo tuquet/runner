@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 fn default_env() -> String {
-    "dev".to_string()
+    "local".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
