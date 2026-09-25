@@ -120,17 +120,39 @@ Example Output:
 ============================================================
 ```
 
-### 2. Zero-Touch Cloud Enrollment
-Register your workstation with Tuquet Cloud:
-```powershell
-# Production (Cloud SaaS)
-tqr enroll --token <WORKSPACE_ENROLLMENT_TOKEN>
+### 2. Flexible Environment Management & Switching
+`tqr` supports out-of-the-box multi-environment management (`dev`, `local`, `prod`):
 
-# Self-Hosted / Local Development
-tqr enroll --url "http://127.0.0.1:54321" --key "<SUPABASE_ANON_KEY>"
+```powershell
+# List available environments and see which is active
+tqr env list
+
+# Switch to Cloud Dev (Supabase Cloud project dswhacsoaxgpfnkaxnhz)
+tqr env switch dev
+
+# Switch to Local Docker Supabase (127.0.0.1:54321)
+tqr env switch local
+
+# Configure or override a custom environment (e.g. prod)
+tqr env set prod --url "https://<your-prod-ref>.supabase.co" --key "<PROD_ANON_KEY>"
+tqr env switch prod
 ```
 
-### 3. Standalone Ad-Hoc Execution (CLI Mode)
+### 3. Zero-Touch Cloud Enrollment
+Register your workstation with Tuquet Cloud for a specific environment:
+```powershell
+# Enroll directly into Cloud Dev (default)
+tqr enroll
+
+# Enroll explicitly into Local or Custom Environment
+tqr enroll --env local
+tqr enroll --env prod
+
+# Override URL and key on the fly
+tqr enroll --url "https://custom.supabase.co" --key "<ANON_KEY>"
+```
+
+### 4. Standalone Ad-Hoc Execution (CLI Mode)
 Execute commands locally with real-time log streaming:
 ```powershell
 # Execute a PowerShell command
@@ -140,7 +162,7 @@ tqr exec -d shell -c "Get-Process | Select-Object -First 5"
 tqr exec -d agent -p "Explain Rust ownership in 3 bullet points"
 ```
 
-### 4. Background Worker Daemon Mode
+### 5. Background Worker Daemon Mode
 Connect outbound to the Cloud Command Center to receive jobs:
 ```powershell
 # Uses enrolled identity automatically
@@ -156,8 +178,12 @@ tqr worker --server wss://hub.tuquet.dev/api/v1/runner/ws --tags "windows,gpu,ai
 
 | Command | Shorthand | Description |
 | :--- | :--- | :--- |
-| `tqr info` | — | Display hardware fingerprint, specs, drivers, and enrollment state |
-| `tqr enroll` | — | Enroll workstation with Tuquet Cloud via Supabase RPC |
+| `tqr info` | — | Display hardware fingerprint, specs, drivers, and active environment |
+| `tqr env list` | — | List all configured environments and show active environment |
+| `tqr env switch <name>` | — | Switch active environment (`dev`, `local`, `prod`) and re-enroll |
+| `tqr env set <name>` | `--url, --key` | Configure or override a custom environment endpoint |
+| `tqr enroll` | `--env, -u, -k` | Enroll workstation with Cloud Dev, Local Docker, or custom endpoint |
+| `tqr purge` | — | Purge local enrollment credentials (`.identity.json`) |
 | `tqr exec` | `-d, -c, -p` | Execute ad-hoc prompt or command locally (`shell`, `agent`, `http`) |
 | `tqr run` | `<file>` | Execute a local job specification file (`.yaml` or `.json`) |
 | `tqr worker` | `-s, -t` | Start worker daemon listening for remote jobs from Cloud Control Plane |
@@ -166,8 +192,9 @@ tqr worker --server wss://hub.tuquet.dev/api/v1/runner/ws --tags "windows,gpu,ai
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `TUQUET_CLOUD_URL` | Tuquet Cloud / Supabase REST API endpoint | `https://api.tuquet.dev` |
-| `TUQUET_API_KEY` | Supabase publishable / anon public key | — |
+| `TUQUET_ENV` | Target environment for enrollment (`dev`, `local`, `prod`) | `dev` |
+| `TUQUET_CLOUD_URL` | Tuquet Cloud / Supabase REST API endpoint | `https://dswhacsoaxgpfnkaxnhz.supabase.co` |
+| `TUQUET_API_KEY` | Supabase publishable / anon public key | Loaded from environment registry |
 | `TUQUET_ENROLLMENT_TOKEN` | Optional workspace registration pairing token | — |
 | `TUQUET_SERVER` | WebSocket control plane gateway URL | `wss://hub.tuquet.dev/api/v1/runner/ws` |
 | `TUQUET_TOKEN` | Runner authentication device token | Loaded from `config/.identity.json` |

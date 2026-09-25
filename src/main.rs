@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tqr::core::engine::RunnerEngine;
 use tqr::core::enrollment::EnrollmentClient;
+use tqr::core::environments::{EnvironmentConfig, EnvironmentRegistry};
 use tqr::core::fingerprint::FingerprintEngine;
 use tqr::core::identity::DeviceIdentity;
 use tqr::protocol::schema::{DriverType, Job, JobStatus};
@@ -21,6 +22,31 @@ use tqr::transport::ws_client::{WsClientConfig, WsRunnerClient};
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Subcommand)]
+enum EnvCommands {
+    /// List all configured environments and show active environment
+    List,
+    /// Switch active environment, purge old identity, and enroll with target environment
+    Switch {
+        /// Target environment: dev, local, or prod
+        name: String,
+    },
+    /// Configure or override an environment endpoint
+    Set {
+        /// Environment name (e.g. prod, staging)
+        name: String,
+        /// Supabase or Cloud REST URL
+        #[arg(long)]
+        url: String,
+        /// Supabase publishable / anon key
+        #[arg(long)]
+        key: String,
+        /// Human-friendly label
+        #[arg(long)]
+        label: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -54,17 +80,26 @@ enum Commands {
     },
     /// Enroll this machine with Tuquet Cloud (zero-touch device registration)
     Enroll {
-        /// Tuquet Cloud / Supabase URL (e.g. https://dswhacsoaxgpfnkaxnhz.supabase.co or http://127.0.0.1:54321)
+        /// Target environment: dev (default), local, or prod
+        #[arg(short, long, env = "TUQUET_ENV", default_value = "dev")]
+        env: String,
+
+        /// Custom Tuquet Cloud / Supabase URL (overrides environment default)
         #[arg(short, long, env = "TUQUET_CLOUD_URL")]
         url: Option<String>,
 
-        /// Supabase publishable / anon key
+        /// Custom Supabase publishable / anon key (overrides environment default)
         #[arg(short, long, env = "TUQUET_API_KEY")]
         key: Option<String>,
 
         /// Optional workspace enrollment token
         #[arg(short, long, env = "TUQUET_ENROLLMENT_TOKEN")]
         token: Option<String>,
+    },
+    /// Manage and switch environments (dev, local, prod)
+    Env {
+        #[command(subcommand)]
+        action: EnvCommands,
     },
     /// Start in background worker daemon mode connecting outbound to Web Control Plane
     Worker {
@@ -191,27 +226,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(result.exit_code.unwrap_or(1));
             }
         }
-        Commands::Enroll { url, key, token } => {
-            const DEFAULT_CLOUD_URL: &str = "https://dswhacsoaxgpfnkaxnhz.supabase.co";
-            const DEFAULT_CLOUD_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzd2hhY3NvYXhncGZua2F4bmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyOTEzMzcsImV4cCI6MjEwNTg2NzMzN30.QRdxE3CPCF8CtliOtSUcSFO-jbKi99uM2AKlJgKt6RQ";
-            const DEFAULT_LOCAL_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+        Commands::Enroll { env, url, key, token } => {
+            let env_config = EnvironmentRegistry::get(&env, &config_dir);
+            let target_url = url.or_else(|| env_config.as_ref().map(|c| c.url.clone()))
+                .unwrap_or_default();
+            let target_key = key.or_else(|| env_config.as_ref().and_then(|c| c.api_key.clone()));
 
-            let target_url = url.unwrap_or_else(|| DEFAULT_CLOUD_URL.to_string());
-
-            let target_key = key.or_else(|| {
-                if target_url == DEFAULT_CLOUD_URL {
-                    Some(DEFAULT_CLOUD_ANON_KEY.to_string())
-                } else if target_url.contains("127.0.0.1") || target_url.contains("localhost") {
-                    Some(DEFAULT_LOCAL_ANON_KEY.to_string())
-                } else {
-                    None
+            if target_url.is_empty() {
+                eprintln!("\x1b[31m[ERROR] Environment '{}' has no URL configured.\x1b[0m", env);
+                if env.to_lowercase() == "prod" {
+                    eprintln!("Configure production endpoint first: tqr env set prod --url <URL> --key <KEY>");
                 }
-            });
+                std::process::exit(1);
+            }
 
             println!("============================================================");
-            println!(" Tuquet Runner (tqr) - Cloud Device Enrollment");
+            println!(" Tuquet Runner (tqr) - Device Enrollment");
             println!("============================================================");
             let specs = FingerprintEngine::collect(&config_dir);
+            println!(" Environment:   {} ({})", env.to_uppercase(), env_config.as_ref().map(|c| c.label.as_str()).unwrap_or("Custom"));
             println!(" Fingerprint:   {}", specs.fingerprint);
             println!(" Hostname:      {}", specs.hostname);
             println!(" Specs:         {} cores, {} MB RAM ({})", specs.cpu_cores, specs.ram_mb, specs.os_info);
@@ -220,9 +253,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("============================================================");
 
             let client = EnrollmentClient::new();
-            match client.enroll(&target_url, target_key.as_deref(), token, &config_dir).await {
+            match client.enroll(&target_url, target_key.as_deref(), token, &env, &config_dir).await {
                 Ok(identity) => {
                     println!("\x1b[32m[SUCCESS] Workstation successfully enrolled with Tuquet Cloud!\x1b[0m");
+                    println!(" Environment:   {}", identity.env.to_uppercase());
                     println!(" Device ID:     {}", identity.device_id);
                     println!(" Tenant ID:     {}", identity.tenant_id);
                     println!(" Device Name:   {}", identity.name);
@@ -232,6 +266,107 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Err(e) => {
                     eprintln!("\x1b[31m[ERROR] Enrollment failed: {}\x1b[0m", e);
                     std::process::exit(1);
+                }
+            }
+        }
+        Commands::Env { action } => {
+            let loaded_identity = DeviceIdentity::load(&config_dir).ok().flatten();
+            let current_env = loaded_identity.as_ref().map(|i| i.env.to_lowercase()).unwrap_or_default();
+
+            match action {
+                EnvCommands::List => {
+                    println!("================================================================================");
+                    println!(" Tuquet Runner (tqr) Environments");
+                    println!("================================================================================");
+                    println!(" {:<8} {:<10} {:<38} {}", "STATUS", "ENV", "URL", "DESCRIPTION");
+                    println!("--------------------------------------------------------------------------------");
+
+                    for e in EnvironmentRegistry::list(&config_dir) {
+                        let is_active = e.name.to_lowercase() == current_env;
+                        let status_str = if is_active {
+                            "\x1b[32m* ACTIVE\x1b[0m"
+                        } else {
+                            "  IDLE  "
+                        };
+                        let url_display = if e.url.is_empty() {
+                            "<not configured>"
+                        } else {
+                            &e.url
+                        };
+                        println!(" {:<17} {:<10} {:<38} {}", status_str, e.name.to_uppercase(), url_display, e.label);
+                    }
+                    println!("================================================================================");
+                    if current_env.is_empty() {
+                        println!("👉 Run 'tqr env switch <dev|local>' to connect.");
+                    } else {
+                        println!("👉 Active environment: \x1b[32m{}\x1b[0m. Switch anytime with: tqr env switch <target>", current_env.to_uppercase());
+                    }
+                }
+                EnvCommands::Switch { name } => {
+                    let target_name = name.to_lowercase();
+                    let target_env = EnvironmentRegistry::get(&target_name, &config_dir);
+
+                    let env_cfg = match target_env {
+                        Some(cfg) if !cfg.url.is_empty() => cfg,
+                        Some(_) => {
+                            eprintln!("\x1b[31m[ERROR] Environment '{}' has not been configured with a URL yet.\x1b[0m", target_name);
+                            eprintln!("Use 'tqr env set {} --url <URL> --key <KEY>' first.", target_name);
+                            std::process::exit(1);
+                        }
+                        None => {
+                            eprintln!("\x1b[31m[ERROR] Unknown environment: '{}'. Available: dev, local, prod\x1b[0m", target_name);
+                            std::process::exit(1);
+                        }
+                    };
+
+                    println!("============================================================");
+                    println!(" Tuquet Runner (tqr) - Switching Environment");
+                    println!("============================================================");
+                    if !current_env.is_empty() {
+                        println!(" Current Environment: {}", current_env.to_uppercase());
+                    }
+                    println!(" Target Environment:  {} ({})", env_cfg.name.to_uppercase(), env_cfg.url);
+                    println!(" Purging old credentials...");
+                    let _ = DeviceIdentity::purge(&config_dir);
+
+                    println!(" Enrolling into {}...", env_cfg.name.to_uppercase());
+                    let client = EnrollmentClient::new();
+                    match client.enroll(&env_cfg.url, env_cfg.api_key.as_deref(), None, &env_cfg.name, &config_dir).await {
+                        Ok(identity) => {
+                            println!("\x1b[32m[SUCCESS] Successfully switched and enrolled into {}!\x1b[0m", env_cfg.name.to_uppercase());
+                            println!(" Environment:   {}", identity.env.to_uppercase());
+                            println!(" Device ID:     {}", identity.device_id);
+                            println!(" Cloud URL:     {}", identity.cloud_url);
+                            println!(" Identity Path: {}", config_dir.join(".identity.json").display());
+                            println!("\n👉 Run 'tqr worker' to start processing jobs on this environment.");
+                        }
+                        Err(e) => {
+                            eprintln!("\x1b[31m[ERROR] Enrollment into '{}' failed: {}\x1b[0m", env_cfg.name, e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnvCommands::Set { name, url, key, label } => {
+                    let target_name = name.to_lowercase();
+                    let lbl = label.unwrap_or_else(|| format!("Custom {} environment", target_name));
+                    let cfg = EnvironmentConfig {
+                        name: target_name.clone(),
+                        label: lbl,
+                        url: url.clone(),
+                        api_key: Some(key),
+                    };
+
+                    match EnvironmentRegistry::set(cfg, &config_dir) {
+                        Ok(_) => {
+                            println!("\x1b[32m[SUCCESS] Environment '{}' configured successfully!\x1b[0m", target_name.to_uppercase());
+                            println!(" URL: {}", url);
+                            println!("Run 'tqr env switch {}' to switch to it.", target_name);
+                        }
+                        Err(e) => {
+                            eprintln!("\x1b[31m[ERROR] Failed to save environment: {}\x1b[0m", e);
+                            std::process::exit(1);
+                        }
+                    }
                 }
             }
         }
@@ -267,11 +402,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("============================================================");
             println!(" Starting Tuquet Runner (tqr) in Worker Daemon Mode");
             println!("============================================================");
-            println!(" Runner ID:  {}", runner_id);
-            println!(" Server:     {}", server_url);
-            println!(" OS/Arch:    {}/{}", std::env::consts::OS, std::env::consts::ARCH);
-            println!(" Tags:       {:?}", tags);
-            println!(" Enrolled:   {}", if loaded_identity.is_some() { "YES (Cloud Managed)" } else { "NO (Local / Standalone)" });
+            println!(" Runner ID:   {}", runner_id);
+            println!(" Server:      {}", server_url);
+            println!(" OS/Arch:     {}/{}", std::env::consts::OS, std::env::consts::ARCH);
+            println!(" Tags:        {:?}", tags);
+            println!(" Environment: {}", loaded_identity.as_ref().map(|i| i.env.to_uppercase()).unwrap_or_else(|| "STANDALONE".to_string()));
             println!("============================================================");
 
             // Spawn cloud heartbeat task if device identity is present
@@ -280,6 +415,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let api_key = ident.api_key.clone();
                 let device_id = ident.device_id.clone();
                 let device_token = ident.device_token.clone();
+                let env_name = ident.env.clone();
                 let config_dir_clone = config_dir.clone();
                 let engine_clone = engine.clone();
 
@@ -303,7 +439,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 eprintln!("\n\x1b[33m[REVOCATION DETECTED] Cloud device identity {} was removed from runners.devices!\x1b[0m", device_id);
                                 eprintln!("Purging local credentials and initiating self-healing re-enrollment...");
                                 let _ = DeviceIdentity::purge(&config_dir_clone);
-                                match client.enroll(&cloud_url, api_key.as_deref(), None, &config_dir_clone).await {
+                                match client.enroll(&cloud_url, api_key.as_deref(), None, &env_name, &config_dir_clone).await {
                                     Ok(new_id) => {
                                         println!("\x1b[32m[SELF-HEALING RECOVERED] Fresh Device ID assigned: {}\x1b[0m", new_id.device_id);
                                     }
@@ -335,7 +471,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match DeviceIdentity::purge(&config_dir) {
                 Ok(_) => {
                     println!("\x1b[32m[SUCCESS] Local device identity purged from {}\x1b[0m", config_dir.join(".identity.json").display());
-                    println!("Workstation is now in a clean, unenrolled state. Run 'tqr enroll' to re-register.");
+                    println!("Workstation is now in a clean, unenrolled state. Run 'tqr env switch <dev|local>' to re-register.");
                 }
                 Err(e) => {
                     eprintln!("\x1b[31m[ERROR] Failed to purge identity: {}\x1b[0m", e);
@@ -360,14 +496,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(" Config Path:  {}", config_dir.display());
             println!("------------------------------------------------------------");
             if let Some(id) = identity {
-                println!(" Enrollment:   ENROLLED (Cloud Active)");
+                println!(" Enrollment:   ENROLLED");
+                println!(" Environment:  {} ({})", id.env.to_uppercase(), id.cloud_url);
                 println!(" Device ID:    {}", id.device_id);
                 println!(" Tenant ID:    {}", id.tenant_id);
                 println!(" Device Name:  {}", id.name);
-                println!(" Cloud URL:    {}", id.cloud_url);
                 println!(" Enrolled At:  {}", id.enrolled_at);
             } else {
-                println!(" Enrollment:   NOT ENROLLED (Run 'tqr enroll' to connect)");
+                println!(" Enrollment:   NOT ENROLLED (Run 'tqr env switch <dev|local>' to connect)");
             }
             println!("============================================================");
         }

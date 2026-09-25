@@ -59,6 +59,7 @@ impl EnrollmentClient {
         cloud_url: &str,
         api_key: Option<&str>,
         enrollment_token: Option<String>,
+        env_name: &str,
         config_dir: &Path,
     ) -> Result<DeviceIdentity, Box<dyn std::error::Error + Send + Sync>> {
         let specs = FingerprintEngine::collect(config_dir);
@@ -85,7 +86,8 @@ impl EnrollmentClient {
             p_capabilities: specs.capabilities,
             p_metadata: serde_json::json!({
                 "version": env!("CARGO_PKG_VERSION"),
-                "client": "tqr"
+                "client": "tqr",
+                "env": env_name
             }),
             p_enrollment_token: enrollment_token,
         };
@@ -113,6 +115,7 @@ impl EnrollmentClient {
             name: enroll_res.name,
             cloud_url: cloud_url.to_string(),
             api_key: api_key.map(|k| k.to_string()),
+            env: env_name.to_string(),
             enrolled_at: chrono::Utc::now().to_rfc3339(),
         };
 

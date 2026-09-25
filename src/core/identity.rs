@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+fn default_env() -> String {
+    "dev".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceIdentity {
     pub device_id: String,
@@ -11,6 +15,8 @@ pub struct DeviceIdentity {
     pub cloud_url: String,
     #[serde(default)]
     pub api_key: Option<String>,
+    #[serde(default = "default_env")]
+    pub env: String,
     pub enrolled_at: String,
 }
 
