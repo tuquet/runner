@@ -1,0 +1,25 @@
+# ==============================================================================
+# Tuquet-Runner Configuration Example
+# ==============================================================================
+runner:
+  # Unique node identifier (defaults to hostname + random suffix if omitted)
+  id: "workstation-alpha-01"
+
+  # Server endpoint of Web Control Plane
+  server: "wss://hub.tuquet.dev/api/v1/runner/ws"
+
+  # Authentication token provided by Web Control Plane
+  token: "tqr_sec_example_token_98765"
+
+  # Node labels for targeted job scheduling
+  tags:
+    - "windows"
+    - "workstation"
+    - "ai-agent"
+    - "claude-agy"
+
+  # Maximum concurrent jobs allowed on this machine
+  max_concurrency: 2
+
+  # Heartbeat ping interval in seconds
+  heartbeat_interval_secs: 20
