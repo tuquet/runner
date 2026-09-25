@@ -54,9 +54,9 @@ enum Commands {
     },
     /// Enroll this machine with Tuquet Cloud (zero-touch device registration)
     Enroll {
-        /// Tuquet Cloud / Supabase URL (e.g. https://api.tuquet.dev or http://127.0.0.1:54321)
-        #[arg(short, long, env = "TUQUET_CLOUD_URL", default_value = "https://api.tuquet.dev")]
-        url: String,
+        /// Tuquet Cloud / Supabase URL (e.g. https://dswhacsoaxgpfnkaxnhz.supabase.co or http://127.0.0.1:54321)
+        #[arg(short, long, env = "TUQUET_CLOUD_URL")]
+        url: Option<String>,
 
         /// Supabase publishable / anon key
         #[arg(short, long, env = "TUQUET_API_KEY")]
@@ -190,6 +190,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Enroll { url, key, token } => {
+            const DEFAULT_LOCAL_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+
+            let target_url = url.unwrap_or_else(|| {
+                if std::net::TcpStream::connect("127.0.0.1:54321").is_ok() {
+                    "http://127.0.0.1:54321".to_string()
+                } else {
+                    "https://dswhacsoaxgpfnkaxnhz.supabase.co".to_string()
+                }
+            });
+
+            let target_key = key.or_else(|| {
+                if target_url.contains("127.0.0.1") || target_url.contains("localhost") {
+                    Some(DEFAULT_LOCAL_ANON_KEY.to_string())
+                } else {
+                    None
+                }
+            });
+
             println!("============================================================");
             println!(" Tuquet Runner (tqr) - Cloud Device Enrollment");
             println!("============================================================");
@@ -198,11 +216,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(" Hostname:      {}", specs.hostname);
             println!(" Specs:         {} cores, {} MB RAM ({})", specs.cpu_cores, specs.ram_mb, specs.os_info);
             println!(" Capabilities:  {:?}", specs.capabilities);
-            println!(" Connecting to: {}", url);
+            println!(" Connecting to: {}", target_url);
             println!("============================================================");
 
             let client = EnrollmentClient::new();
-            match client.enroll(&url, key.as_deref(), token, &config_dir).await {
+            match client.enroll(&target_url, target_key.as_deref(), token, &config_dir).await {
                 Ok(identity) => {
                     println!("\x1b[32m[SUCCESS] Workstation successfully enrolled with Tuquet Cloud!\x1b[0m");
                     println!(" Device ID:     {}", identity.device_id);
