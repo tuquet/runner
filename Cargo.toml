@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Tuquet Team"]
 description = "Ultra-high performance universal distributed execution engine in Rust"
 license = "MIT"
-repository = "https://github.com/tuquet/tuquet-runner"
+repository = "https://github.com/tuquet/tqr"
 readme = "README.md"
 
 [lib]

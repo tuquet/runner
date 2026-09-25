@@ -9,6 +9,8 @@ pub struct DeviceIdentity {
     pub device_token: String,
     pub name: String,
     pub cloud_url: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
     pub enrolled_at: String,
 }
 
@@ -22,7 +24,7 @@ impl DeviceIdentity {
     }
 
     /// Load identity from config/.identity.json
-    pub fn load(config_dir: &Path) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+    pub fn load(config_dir: &Path) -> Result<Option<Self>, Box<dyn std::error::Error + Send + Sync>> {
         let file_path = config_dir.join(Self::IDENTITY_FILENAME);
         if !file_path.exists() {
             return Ok(None);
@@ -34,11 +36,20 @@ impl DeviceIdentity {
     }
 
     /// Save identity to config/.identity.json
-    pub fn save(&self, config_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save(&self, config_dir: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         fs::create_dir_all(config_dir)?;
         let file_path = config_dir.join(Self::IDENTITY_FILENAME);
         let content = serde_json::to_string_pretty(self)?;
         fs::write(file_path, content)?;
+        Ok(())
+    }
+
+    /// Purge identity file upon revocation / cloud deletion
+    pub fn purge(config_dir: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let file_path = config_dir.join(Self::IDENTITY_FILENAME);
+        if file_path.exists() {
+            fs::remove_file(file_path)?;
+        }
         Ok(())
     }
 }

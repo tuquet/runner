@@ -3,19 +3,19 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tuquet_runner::core::engine::RunnerEngine;
-use tuquet_runner::core::enrollment::EnrollmentClient;
-use tuquet_runner::core::fingerprint::FingerprintEngine;
-use tuquet_runner::core::identity::DeviceIdentity;
-use tuquet_runner::protocol::schema::{DriverType, Job, JobStatus};
-use tuquet_runner::transport::local_channel::LocalRunner;
-use tuquet_runner::transport::ws_client::{WsClientConfig, WsRunnerClient};
+use tqr::core::engine::RunnerEngine;
+use tqr::core::enrollment::EnrollmentClient;
+use tqr::core::fingerprint::FingerprintEngine;
+use tqr::core::identity::DeviceIdentity;
+use tqr::protocol::schema::{DriverType, Job, JobStatus};
+use tqr::transport::local_channel::LocalRunner;
+use tqr::transport::ws_client::{WsClientConfig, WsRunnerClient};
 
 #[derive(Parser)]
 #[command(
     name = "tqr",
     version,
-    about = "Ultra-fast universal distributed execution engine in Rust (tqr / tuquet-runner)",
+    about = "Ultra-fast universal distributed execution engine in Rust",
     long_about = "Executes AI agents, browser workflows, shell commands, and webhooks across distributed nodes."
 )]
 struct Cli {
@@ -86,6 +86,8 @@ enum Commands {
     },
     /// Display system information, hardware fingerprint, capabilities, and enrollment status
     Info,
+    /// Reset local device enrollment credentials by deleting .identity.json
+    Purge,
 }
 
 fn get_config_dir() -> PathBuf {
@@ -190,18 +192,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Enroll { url, key, token } => {
-            const DEFAULT_LOCAL_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+            const DEFAULT_CLOUD_URL: &str = "https://dswhacsoaxgpfnkaxnhz.supabase.co";
+            const DEFAULT_CLOUD_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzd2hhY3NvYXhncGZua2F4bmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyOTEzMzcsImV4cCI6MjEwNTg2NzMzN30.QRdxE3CPCF8CtliOtSUcSFO-jbKi99uM2AKlJgKt6RQ";
+            const DEFAULT_LOCAL_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
-            let target_url = url.unwrap_or_else(|| {
-                if std::net::TcpStream::connect("127.0.0.1:54321").is_ok() {
-                    "http://127.0.0.1:54321".to_string()
-                } else {
-                    "https://dswhacsoaxgpfnkaxnhz.supabase.co".to_string()
-                }
-            });
+            let target_url = url.unwrap_or_else(|| DEFAULT_CLOUD_URL.to_string());
 
             let target_key = key.or_else(|| {
-                if target_url.contains("127.0.0.1") || target_url.contains("localhost") {
+                if target_url == DEFAULT_CLOUD_URL {
+                    Some(DEFAULT_CLOUD_ANON_KEY.to_string())
+                } else if target_url.contains("127.0.0.1") || target_url.contains("localhost") {
                     Some(DEFAULT_LOCAL_ANON_KEY.to_string())
                 } else {
                     None
@@ -274,6 +274,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(" Enrolled:   {}", if loaded_identity.is_some() { "YES (Cloud Managed)" } else { "NO (Local / Standalone)" });
             println!("============================================================");
 
+            // Spawn cloud heartbeat task if device identity is present
+            if let Some(ref ident) = loaded_identity {
+                let cloud_url = ident.cloud_url.clone();
+                let api_key = ident.api_key.clone();
+                let device_id = ident.device_id.clone();
+                let device_token = ident.device_token.clone();
+                let config_dir_clone = config_dir.clone();
+                let engine_clone = engine.clone();
+
+                tokio::spawn(async move {
+                    let client = EnrollmentClient::new();
+                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+
+                    loop {
+                        interval.tick().await;
+                        let active = engine_clone.active_jobs_count();
+                        let telemetry = serde_json::json!({
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                            "version": env!("CARGO_PKG_VERSION")
+                        });
+
+                        match client.heartbeat(&cloud_url, api_key.as_deref(), &device_id, &device_token, active, telemetry).await {
+                            Ok(true) => {
+                                tracing::debug!("Cloud heartbeat sent successfully");
+                            }
+                            Ok(false) => {
+                                eprintln!("\n\x1b[33m[REVOCATION DETECTED] Cloud device identity {} was removed from runners.devices!\x1b[0m", device_id);
+                                eprintln!("Purging local credentials and initiating self-healing re-enrollment...");
+                                let _ = DeviceIdentity::purge(&config_dir_clone);
+                                match client.enroll(&cloud_url, api_key.as_deref(), None, &config_dir_clone).await {
+                                    Ok(new_id) => {
+                                        println!("\x1b[32m[SELF-HEALING RECOVERED] Fresh Device ID assigned: {}\x1b[0m", new_id.device_id);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("\x1b[31m[SELF-HEALING FAILED] Re-enrollment failed: {}\x1b[0m", e);
+                                    }
+                                }
+                                break;
+                            }
+                            Err(e) => {
+                                tracing::warn!("Cloud heartbeat transient error: {}", e);
+                            }
+                        }
+                    }
+                });
+            }
+
             let config = WsClientConfig {
                 server_url,
                 token: auth_token,
@@ -283,6 +330,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let client = WsRunnerClient::new(config, engine);
             client.start().await;
+        }
+        Commands::Purge => {
+            match DeviceIdentity::purge(&config_dir) {
+                Ok(_) => {
+                    println!("\x1b[32m[SUCCESS] Local device identity purged from {}\x1b[0m", config_dir.join(".identity.json").display());
+                    println!("Workstation is now in a clean, unenrolled state. Run 'tqr enroll' to re-register.");
+                }
+                Err(e) => {
+                    eprintln!("\x1b[31m[ERROR] Failed to purge identity: {}\x1b[0m", e);
+                    std::process::exit(1);
+                }
+            }
         }
         Commands::Info => {
             let specs = FingerprintEngine::collect(&config_dir);

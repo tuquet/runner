@@ -82,8 +82,8 @@ scoop install tqr
 ### 2. From Source (Cargo)
 
 ```bash
-git clone https://github.com/tuquet/tuquet-runner.git
-cd tuquet-runner
+git clone https://github.com/tuquet/tqr.git
+cd tqr
 cargo build --release
 ```
 The compiled binary will be placed at `target/release/tqr.exe`.
