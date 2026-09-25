@@ -233,7 +233,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .or_else(|| loaded_identity.as_ref().map(|i| i.device_token.clone()));
 
             let server_url = server
-                .or_else(|| loaded_identity.as_ref().map(|i| format!("{}/api/v1/runner/ws", i.cloud_url.trim_end_matches('/'))))
+                .or_else(|| loaded_identity.as_ref().map(|i| {
+                    let base = i.cloud_url.trim_end_matches('/');
+                    let ws_base = if let Some(stripped) = base.strip_prefix("https://") {
+                        format!("wss://{}", stripped)
+                    } else if let Some(stripped) = base.strip_prefix("http://") {
+                        format!("ws://{}", stripped)
+                    } else {
+                        base.to_string()
+                    };
+                    format!("{}/api/v1/runner/ws", ws_base)
+                }))
                 .unwrap_or_else(|| "wss://hub.tuquet.dev/api/v1/runner/ws".to_string());
 
             println!("============================================================");
