@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod automa;
 pub mod http;
 pub mod shell;
 

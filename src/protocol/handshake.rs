@@ -31,3 +31,26 @@ impl AgentManifest {
         self.protocol.starts_with("tuquet.agent.")
     }
 }
+
+/// Capability manifest returned by automa-core browser automation plugin
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutomaManifest {
+    pub protocol: String,
+    pub name: String,
+    pub version: String,
+    #[serde(default)]
+    pub engine: String,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+    #[serde(default)]
+    pub plugin_type: String,
+}
+
+impl AutomaManifest {
+    /// Validates whether the plugin matches tuquet.automa.v1 protocol specifications
+    pub fn is_compatible(&self) -> bool {
+        self.protocol.starts_with("tuquet.automa.")
+    }
+}

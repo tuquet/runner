@@ -121,6 +121,11 @@ impl FingerprintEngine {
             caps.push("agent:claude-agy".to_string());
         }
 
+        // 3. Probe automa-core browser automation plugin capability
+        if Self::probe_automa() {
+            caps.push("automa:core".to_string());
+        }
+
         caps
     }
 
@@ -141,6 +146,30 @@ impl FingerprintEngine {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 return stdout.contains("tuquet.agent.v1");
+            }
+        }
+
+        false
+    }
+
+    fn probe_automa() -> bool {
+        let cmd_name = if cfg!(windows) { "automa.exe" } else { "automa" };
+        let mut cmd = Command::new(cmd_name);
+        cmd.arg("probe");
+
+        if let Ok(output) = cmd.output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                return stdout.contains("tuquet.automa.v1");
+            }
+        }
+
+        // Fallback: check 'automa-core' binary
+        let core_name = if cfg!(windows) { "automa-core.exe" } else { "automa-core" };
+        if let Ok(output) = Command::new(core_name).arg("probe").output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                return stdout.contains("tuquet.automa.v1");
             }
         }
 

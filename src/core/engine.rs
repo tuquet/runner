@@ -1,5 +1,6 @@
 use crate::core::masker::SecretMasker;
 use crate::drivers::agent::AgentDriver;
+use crate::drivers::automa::AutomaDriver;
 use crate::drivers::http::HttpDriver;
 use crate::drivers::shell::ShellDriver;
 use crate::drivers::{DriverRegistry, ExecutionContext};
@@ -20,6 +21,7 @@ impl RunnerEngine {
         let mut registry = DriverRegistry::new();
         registry.register(Box::new(ShellDriver::new()));
         registry.register(Box::new(AgentDriver::new()));
+        registry.register(Box::new(AutomaDriver::new()));
         registry.register(Box::new(HttpDriver::new()));
 
         let masker = Arc::new(SecretMasker::new());
