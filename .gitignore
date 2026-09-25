@@ -9,6 +9,7 @@
 *.key
 data/
 logs/
+config/
 
 # IDE and OS
 .idea/

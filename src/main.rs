@@ -4,15 +4,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tuquet_runner::core::engine::RunnerEngine;
+use tuquet_runner::core::enrollment::EnrollmentClient;
+use tuquet_runner::core::fingerprint::FingerprintEngine;
+use tuquet_runner::core::identity::DeviceIdentity;
 use tuquet_runner::protocol::schema::{DriverType, Job, JobStatus};
 use tuquet_runner::transport::local_channel::LocalRunner;
 use tuquet_runner::transport::ws_client::{WsClientConfig, WsRunnerClient};
 
 #[derive(Parser)]
 #[command(
-    name = "tuquet-runner",
+    name = "tqr",
     version,
-    about = "Ultra-high performance universal distributed execution engine in Rust",
+    about = "Ultra-fast universal distributed execution engine in Rust (tqr / tuquet-runner)",
     long_about = "Executes AI agents, browser workflows, shell commands, and webhooks across distributed nodes."
 )]
 struct Cli {
@@ -49,17 +52,31 @@ enum Commands {
         #[arg(long, default_value_t = 300000)]
         timeout: u64,
     },
+    /// Enroll this machine with Tuquet Cloud (zero-touch device registration)
+    Enroll {
+        /// Tuquet Cloud / Supabase URL (e.g. https://api.tuquet.dev or http://127.0.0.1:54321)
+        #[arg(short, long, env = "TUQUET_CLOUD_URL", default_value = "https://api.tuquet.dev")]
+        url: String,
+
+        /// Supabase publishable / anon key
+        #[arg(short, long, env = "TUQUET_API_KEY")]
+        key: Option<String>,
+
+        /// Optional workspace enrollment token
+        #[arg(short, long, env = "TUQUET_ENROLLMENT_TOKEN")]
+        token: Option<String>,
+    },
     /// Start in background worker daemon mode connecting outbound to Web Control Plane
     Worker {
         /// Web Control Plane WebSocket endpoint (e.g. wss://hub.tuquet.dev/api/v1/runner/ws)
         #[arg(short, long, env = "TUQUET_SERVER")]
-        server: String,
+        server: Option<String>,
 
         /// Authentication token for the runner
         #[arg(short, long, env = "TUQUET_TOKEN")]
         token: Option<String>,
 
-        /// Unique runner node ID (defaults to hostname-uuid)
+        /// Unique runner node ID (defaults to enrolled device_id or hostname-uuid)
         #[arg(long, env = "TUQUET_RUNNER_ID")]
         id: Option<String>,
 
@@ -67,8 +84,27 @@ enum Commands {
         #[arg(long, value_delimiter = ',')]
         tags: Vec<String>,
     },
-    /// Display system information, capabilities, and registered drivers
+    /// Display system information, hardware fingerprint, capabilities, and enrollment status
     Info,
+}
+
+fn get_config_dir() -> PathBuf {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(parent) = exe_path.parent() {
+            let scoop_config = parent.join("config");
+            if scoop_config.exists() {
+                return scoop_config;
+            }
+        }
+    }
+    let local = PathBuf::from("config");
+    if local.exists() {
+        return local;
+    }
+    if let Ok(user_home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+        return PathBuf::from(user_home).join(".tuquet").join("config");
+    }
+    PathBuf::from("config")
 }
 
 #[tokio::main]
@@ -81,6 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cli = Cli::parse();
     let engine = Arc::new(RunnerEngine::new());
+    let config_dir = get_config_dir();
 
     match cli.command {
         Commands::Run { file } => {
@@ -152,26 +189,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(result.exit_code.unwrap_or(1));
             }
         }
+        Commands::Enroll { url, key, token } => {
+            println!("============================================================");
+            println!(" Tuquet Runner (tqr) - Cloud Device Enrollment");
+            println!("============================================================");
+            let specs = FingerprintEngine::collect(&config_dir);
+            println!(" Fingerprint:   {}", specs.fingerprint);
+            println!(" Hostname:      {}", specs.hostname);
+            println!(" Specs:         {} cores, {} MB RAM ({})", specs.cpu_cores, specs.ram_mb, specs.os_info);
+            println!(" Capabilities:  {:?}", specs.capabilities);
+            println!(" Connecting to: {}", url);
+            println!("============================================================");
+
+            let client = EnrollmentClient::new();
+            match client.enroll(&url, key.as_deref(), token, &config_dir).await {
+                Ok(identity) => {
+                    println!("\x1b[32m[SUCCESS] Workstation successfully enrolled with Tuquet Cloud!\x1b[0m");
+                    println!(" Device ID:     {}", identity.device_id);
+                    println!(" Tenant ID:     {}", identity.tenant_id);
+                    println!(" Device Name:   {}", identity.name);
+                    println!(" Identity Path: {}", config_dir.join(".identity.json").display());
+                    println!("\n👉 Run 'tqr worker' to start processing cloud jobs.");
+                }
+                Err(e) => {
+                    eprintln!("\x1b[31m[ERROR] Enrollment failed: {}\x1b[0m", e);
+                    std::process::exit(1);
+                }
+            }
+        }
         Commands::Worker { server, token, id, tags } => {
-            let runner_id = id.unwrap_or_else(|| {
-                let host = std::env::var("COMPUTERNAME")
-                    .or_else(|_| std::env::var("HOSTNAME"))
-                    .unwrap_or_else(|_| "node".to_string());
-                format!("{}-{}", host, &uuid::Uuid::new_v4().simple().to_string()[..8])
-            });
+            let loaded_identity = DeviceIdentity::load(&config_dir).ok().flatten();
+
+            let runner_id = id
+                .or_else(|| loaded_identity.as_ref().map(|i| i.device_id.clone()))
+                .unwrap_or_else(|| {
+                    let host = std::env::var("COMPUTERNAME")
+                        .or_else(|_| std::env::var("HOSTNAME"))
+                        .unwrap_or_else(|_| "node".to_string());
+                    format!("{}-{}", host, &uuid::Uuid::new_v4().simple().to_string()[..8])
+                });
+
+            let auth_token = token
+                .or_else(|| loaded_identity.as_ref().map(|i| i.device_token.clone()));
+
+            let server_url = server
+                .or_else(|| loaded_identity.as_ref().map(|i| format!("{}/api/v1/runner/ws", i.cloud_url.trim_end_matches('/'))))
+                .unwrap_or_else(|| "wss://hub.tuquet.dev/api/v1/runner/ws".to_string());
 
             println!("============================================================");
-            println!(" Starting Tuquet-Runner in Worker Daemon Mode");
+            println!(" Starting Tuquet Runner (tqr) in Worker Daemon Mode");
             println!("============================================================");
             println!(" Runner ID:  {}", runner_id);
-            println!(" Server:     {}", server);
+            println!(" Server:     {}", server_url);
             println!(" OS/Arch:    {}/{}", std::env::consts::OS, std::env::consts::ARCH);
             println!(" Tags:       {:?}", tags);
+            println!(" Enrolled:   {}", if loaded_identity.is_some() { "YES (Cloud Managed)" } else { "NO (Local / Standalone)" });
             println!("============================================================");
 
             let config = WsClientConfig {
-                server_url: server,
-                token,
+                server_url,
+                token: auth_token,
                 runner_id,
                 tags,
             };
@@ -180,15 +257,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             client.start().await;
         }
         Commands::Info => {
+            let specs = FingerprintEngine::collect(&config_dir);
+            let identity = DeviceIdentity::load(&config_dir).ok().flatten();
+
             println!("============================================================");
-            println!(" Tuquet-Runner System Information & Diagnostics");
+            println!(" Tuquet Runner (tqr) System Diagnostics");
             println!("============================================================");
             println!(" Version:      {}", env!("CARGO_PKG_VERSION"));
-            println!(" OS:           {}", std::env::consts::OS);
-            println!(" Architecture: {}", std::env::consts::ARCH);
-            println!(" Drivers:      [shell, agent (claude-agy), automa, http]");
-            println!(" Memory Idle:  <10MB (Rust Native Zero-GC)");
+            println!(" Hostname:     {}", specs.hostname);
+            println!(" Fingerprint:  {}", specs.fingerprint);
+            println!(" Architecture: {}", specs.os_info);
+            println!(" Resources:    {} CPU Cores | {} MB RAM", specs.cpu_cores, specs.ram_mb);
+            println!(" Capabilities: {:?}", specs.capabilities);
             println!(" Supervision:  {}", if cfg!(windows) { "Win32 Job Objects (Kernel-Level Zero-Zombie)" } else { "POSIX Process Groups" });
+            println!(" Config Path:  {}", config_dir.display());
+            println!("------------------------------------------------------------");
+            if let Some(id) = identity {
+                println!(" Enrollment:   ENROLLED (Cloud Active)");
+                println!(" Device ID:    {}", id.device_id);
+                println!(" Tenant ID:    {}", id.tenant_id);
+                println!(" Device Name:  {}", id.name);
+                println!(" Cloud URL:    {}", id.cloud_url);
+                println!(" Enrolled At:  {}", id.enrolled_at);
+            } else {
+                println!(" Enrollment:   NOT ENROLLED (Run 'tqr enroll' to connect)");
+            }
             println!("============================================================");
         }
     }
