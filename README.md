@@ -1,10 +1,10 @@
-# ⚡ Tuquet Runner (`tqr` / `tuquet-runner`)
+# ⚡ tqr (`tqr`)
 
 > **Ultra-high performance universal distributed execution engine in Rust**. Orchestrates AI Agents (`claude-agy`), native shell scripts, webhooks, and browser automations across distributed nodes with sub-10MB RAM footprint, zero cold-start latency, Win32 kernel-level process supervision, and zero-touch cloud enrollment.
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#-installation)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Scoop](https://img.shields.io/badge/Scoop-tuquet%2Ftuquet--runner-brightgreen.svg)](#1-windows-via-scoop-recommended)
+[![Scoop](https://img.shields.io/badge/Scoop-tuquet%2Ftqr-brightgreen.svg)](#1-windows-via-scoop-recommended)
 [![Command: tqr](https://img.shields.io/badge/CLI-tqr-orange.svg)](#-quick-start)
 
 ---
@@ -51,7 +51,7 @@ flowchart TD
 
 ## ✨ Key Features
 
-- **Lightning-Fast (3-Letter CLI `tqr`)**: Optimized developer ergonomics (`tqr info`, `tqr enroll`, `tqr exec`, `tqr worker`). Alias `tuquet-runner` is preserved for formal CI/CD pipelines.
+- **Lightning-Fast (3-Letter CLI `tqr`)**: Optimized developer ergonomics (`tqr info`, `tqr enroll`, `tqr exec`, `tqr worker`).
 - **Zero-Touch Cloud Enrollment (`tqr enroll`)**: Automatically probes BIOS UUID (`Win32_ComputerSystemProduct`), hardware specs (CPU cores, RAM size), and local capabilities (`claude-agy`), enrolling the machine into Tuquet Cloud in sub-second time.
 - **Dumb Runner, Smart Cloud Architecture**:
   - No static YAML drift! Workstations only store a minimal identity anchor in `config/.identity.json` (`device_id` + `device_token`).
@@ -73,8 +73,8 @@ flowchart TD
 # Add Tuquet bucket
 scoop bucket add tuquet https://github.com/tuquet/tuquet-scoop-bucket
 
-# Install tuquet-runner (registers both 'tqr' and 'tuquet-runner' shims)
-scoop install tuquet-runner
+# Install tqr
+scoop install tqr
 ```
 
 *Note: Scoop automatically persists `config/` (`.identity.json`, `.machine_id`) and `logs/` across version updates.*

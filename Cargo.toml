@@ -1,13 +1,16 @@
 [package]
-name = "tuquet-runner"
+name = "tqr"
 version = "0.1.0"
 edition = "2021"
 authors = ["Tuquet Team"]
-description = "Ultra-high performance universal distributed execution engine in Rust (AI Agents, Workflows, Shell, Webhooks)"
+description = "Ultra-high performance universal distributed execution engine in Rust"
 license = "MIT"
 repository = "https://github.com/tuquet/tuquet-runner"
 readme = "README.md"
-default-run = "tqr"
+
+[lib]
+name = "tqr"
+path = "src/lib.rs"
 
 [[bin]]
 name = "tqr"
