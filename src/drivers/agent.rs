@@ -1,12 +1,13 @@
 use crate::core::supervisor::ProcessSupervisor;
 use crate::drivers::{ExecutionContext, ExecutionDriver};
+use crate::protocol::handshake::{AgentAuthStatus, AgentManifest};
 use crate::protocol::schema::{Job, JobId, JobResult, LogChannel};
 use async_trait::async_trait;
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tracing::info;
+use tracing::{info, warn};
 
 pub struct AgentDriver;
 
@@ -18,7 +19,6 @@ impl AgentDriver {
     /// Resolves the executable path for the agent runner (claude-agy or claude)
     fn resolve_agent_bin(&self, target: &str) -> String {
         if target.is_empty() || target == "claude-agy" {
-            // Check if claude-agy is available in PATH
             if cfg!(windows) {
                 "claude-agy.cmd".to_string()
             } else {
@@ -27,6 +27,36 @@ impl AgentDriver {
         } else {
             target.to_string()
         }
+    }
+
+    /// Performs an active capability negotiation and authentication health probe
+    pub async fn probe(&self, bin_name: &str) -> Result<AgentManifest, String> {
+        let output = tokio::time::timeout(
+            Duration::from_secs(4),
+            Command::new(bin_name).arg("probe").output(),
+        )
+        .await
+        .map_err(|_| format!("Handshake probe timed out for '{}'", bin_name))?
+        .map_err(|e| format!("Failed to execute handshake probe on '{}': {}", bin_name, e))?;
+
+        if !output.status.success() {
+            return Err(format!(
+                "Agent probe command failed with exit code {:?}: {}",
+                output.status.code(),
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+
+        let stdout_str = String::from_utf8_lossy(&output.stdout);
+        let manifest: AgentManifest = serde_json::from_str(stdout_str.trim()).map_err(|e| {
+            format!(
+                "Failed to parse AgentManifest JSON: {} (Output: '{}')",
+                e,
+                stdout_str.trim()
+            )
+        })?;
+
+        Ok(manifest)
     }
 }
 
@@ -65,11 +95,61 @@ impl ExecutionDriver for AgentDriver {
         let model = job.payload.get("model").and_then(|v| v.as_str());
         let token_path = job.payload.get("token_path").and_then(|v| v.as_str());
 
-        // 2. Prepare command invocation
         let bin_name = self.resolve_agent_bin(target);
-        let mut cmd = Command::new(&bin_name);
 
-        // One-shot prompt mode
+        // 2. Handshake Phase: Probe agent capabilities & auth health
+        ctx.emit_log(
+            LogChannel::System,
+            &format!("Initiating handshake probe with agent '{}'...", bin_name),
+        );
+
+        let manifest = match self.probe(&bin_name).await {
+            Ok(m) => {
+                ctx.emit_log(
+                    LogChannel::System,
+                    &format!(
+                        "Handshake OK: '{}' v{} [Protocol: {}, Account: {}, Proxy: {}]",
+                        m.name, m.version, m.protocol, m.auth.email, m.proxy_ready
+                    ),
+                );
+                m
+            }
+            Err(e) => {
+                warn!("Handshake probe warning: {}", e);
+                ctx.emit_log(
+                    LogChannel::System,
+                    &format!("Probe notice: {}. Proceeding with standard execution.", e),
+                );
+                // Fallback manifest for compatibility
+                AgentManifest {
+                    protocol: "tuquet.agent.legacy".to_string(),
+                    name: target.to_string(),
+                    version: "unknown".to_string(),
+                    engine: "claude-code".to_string(),
+                    auth: AgentAuthStatus {
+                        valid: true,
+                        email: "unknown".to_string(),
+                        provider: "legacy".to_string(),
+                    },
+                    capabilities: vec![],
+                    models: vec![],
+                    proxy_ready: true,
+                }
+            }
+        };
+
+        // Assert valid authentication before wasting resources
+        if !manifest.auth.valid {
+            let err_msg = format!(
+                "Handshake rejected: Agent '{}' has invalid or missing OAuth credentials. Please log in first.",
+                manifest.name
+            );
+            ctx.emit_log(LogChannel::System, &err_msg);
+            return Ok(JobResult::failure(job.id, Some(1), 0, err_msg));
+        }
+
+        // 3. Prepare execution command
+        let mut cmd = Command::new(&bin_name);
         cmd.arg("-p").arg(prompt);
 
         if bypass_permissions {
@@ -84,7 +164,7 @@ impl ExecutionDriver for AgentDriver {
             cmd.arg("--token-path").arg(tp);
         }
 
-        // 3. Configure working directory & environment
+        // 4. Configure working directory & environment
         if let Some(ref cwd) = job.cwd {
             cmd.current_dir(cwd);
         }
@@ -95,10 +175,15 @@ impl ExecutionDriver for AgentDriver {
             }
         }
 
+        cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
-        info!("AgentDriver launching {} with prompt ({} chars)", bin_name, prompt.len());
+        info!(
+            "AgentDriver executing {} with prompt ({} chars)",
+            bin_name,
+            prompt.len()
+        );
         let mut child = cmd.spawn().map_err(|e| {
             format!(
                 "Failed to spawn AI agent '{}'. Ensure it is installed and in PATH (e.g. 'scoop install claude-agy'): {}",
@@ -106,7 +191,7 @@ impl ExecutionDriver for AgentDriver {
             )
         })?;
 
-        // 4. Stream output in real time
+        // 5. Asynchronous streaming of stdout and stderr
         let stdout = child.stdout.take().ok_or("Failed to capture stdout pipe")?;
         let stderr = child.stderr.take().ok_or("Failed to capture stderr pipe")?;
 
@@ -126,7 +211,7 @@ impl ExecutionDriver for AgentDriver {
             }
         });
 
-        // 5. Supervise process with timeout
+        // 6. Supervise execution with kernel timeout
         let mut supervisor = ProcessSupervisor::new();
         let timeout_duration = Duration::from_millis(job.timeout_ms);
 
