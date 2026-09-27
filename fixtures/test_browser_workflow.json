@@ -22,7 +22,7 @@
         "id": "node-delay",
         "label": "delay",
         "data": {
-          "time": 10000
+          "time": 2000
         }
       }
     ],
