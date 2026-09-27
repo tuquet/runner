@@ -83,13 +83,25 @@ type "%RESPONSE_FILE%"
 echo.
 echo ------------------------------------------------------------
 
-:: 4. Thong bao ket qua
+:: 4. Theo doi tien trinh va trang thai
 echo.
-echo [4/4] [SUCCESS] Lenh curl da gui thanh cong!
-echo [*] Cua so Chromium GUI se hien thi ngay tren man hinh cua ban.
-echo [*] Trinh duyet se mo https://example.com va giu nguyen man hinh.
+echo [4/4] Theo doi tien trinh thuc thi cua trinh duyet...
+powershell -NoProfile -Command ^
+  "$resp = Get-Content '%RESPONSE_FILE%' | ConvertFrom-Json; " ^
+  "if ($resp.jobId) { " ^
+  "  Write-Host ('[*] Job ID: ' + $resp.jobId); " ^
+  "  Write-Host '[*] Cua so Chromium GUI dang mo tren Desktop cua ban...'; " ^
+  "  for ($i = 0; $i -lt 30; $i++) { " ^
+  "    Start-Sleep -Seconds 1; " ^
+  "    $st = curl.exe -s ('http://127.0.0.1:8765/api/v1/jobs/' + $resp.jobId + '/status') | ConvertFrom-Json; " ^
+  "    Write-Host ('[*] Tien do job: ' + $st.status); " ^
+  "    if ($st.status -eq 'completed' -or $st.status -eq 'error') { break; } " ^
+  "  } " ^
+  "}"
+
 echo.
-echo Nhan phim bat ky de ket thuc...
+echo [SUCCESS] Hoan tat! Trinh duyet van duoc giu nguyen tren man hinh de ban quan sat.
+echo Nhan phim bat ky de ket thuc script...
 pause > nul
 
 :: Don dep file temp
