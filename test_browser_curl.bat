@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title Tuquet Automa - Live Browser Workflow Trigger
+title Tuquet Automa - Live Browser Workflow Trigger (CURL)
 
 echo ============================================================
 echo   TUQUET AUTOMA - LIVE BROWSER WORKFLOW TEST (CURL)
@@ -11,14 +11,14 @@ echo.
 echo [1/4] Kiem tra ket noi den Automa Daemon (http://127.0.0.1:8765)...
 curl.exe -s -m 2 http://127.0.0.1:8765/api/v1/health > nul 2>&1
 if %errorlevel% neq 0 (
-    echo [*] Daemon chua chay. Dang khoi dong Automa Daemon o background...
-    start "" /b automa.exe server -p 8765
+    echo [*] Daemon chua chay. Dang khoi dong Automa Daemon tren Desktop...
+    start "Tuquet Automa Daemon" automa.exe server -p 8765
     timeout /t 3 /nobreak > nul
 ) else (
     echo [OK] Daemon dang hoat dong binh thuong.
 )
 
-:: 2. Tao file payload JSON vao thu muc Temp
+:: 2. Tao file payload JSON vao thu muc Temp (headless: false)
 set "PAYLOAD_FILE=%TEMP%\automa_visual_test_%RANDOM%.json"
 echo [2/4] Khoi tao workflow payload tai: %PAYLOAD_FILE%
 
@@ -41,7 +41,7 @@ echo         },
 echo         {
 echo           "id": "node-delay",
 echo           "label": "delay",
-echo           "data": { "time": 6000 }
+echo           "data": { "time": 10000 }
 echo         }
 echo       ],
 echo       "edges": [
@@ -85,9 +85,9 @@ echo ------------------------------------------------------------
 
 :: 4. Thong bao ket qua
 echo.
-echo [4/4] [SUCCESS] Lenh da duoc tiep nhan!
-echo [*] Trinh duyet Chromium GUI dang duoc mo truc tiep tren Desktop.
-echo [*] Tab https://example.com se tu dong chay va duy tri hien thi.
+echo [4/4] [SUCCESS] Lenh curl da gui thanh cong!
+echo [*] Cua so Chromium GUI se hien thi ngay tren man hinh cua ban.
+echo [*] Trinh duyet se mo https://example.com va giu nguyen man hinh.
 echo.
 echo Nhan phim bat ky de ket thuc...
 pause > nul
