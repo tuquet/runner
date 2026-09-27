@@ -153,8 +153,6 @@ impl ExecutionDriver for AutomaDriver {
             .spawn()
             .map_err(|e| format!("Failed to spawn automa plugin '{}': {}", bin_name, e))?;
 
-        let _guard = ProcessSupervisor::supervise(&child);
-
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
 
@@ -178,53 +176,52 @@ impl ExecutionDriver for AutomaDriver {
             }
         });
 
-        let timeout_secs = job.timeout_seconds.unwrap_or(300);
-        let timeout_duration = Duration::from_secs(timeout_secs);
+        // 5. Supervise process with Win32 Job Object & Timeout
+        let mut supervisor = ProcessSupervisor::new();
+        let timeout_duration = Duration::from_millis(job.timeout_ms);
 
-        let status_res = tokio::time::timeout(timeout_duration, child.wait()).await;
+        let wait_result = supervisor.wait_with_timeout(&mut child, timeout_duration).await;
 
-        let _ = stdout_handle.await;
-        let _ = stderr_handle.await;
+        let _ = tokio::join!(stdout_handle, stderr_handle);
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        match status_res {
-            Ok(Ok(status)) => {
+        match wait_result {
+            Ok(status) => {
                 let code = status.code().unwrap_or(-1);
                 if status.success() {
                     ctx.emit_log(
                         LogChannel::System,
                         &format!("Browser automation completed successfully in {}ms (exit 0)", duration_ms),
                     );
-                    Ok(JobResult::completed(&job.id, code, duration_ms))
+                    Ok(JobResult::success(job.id, duration_ms, None))
                 } else {
                     ctx.emit_log(
                         LogChannel::System,
                         &format!("Browser automation failed with exit code {}", code),
                     );
-                    Ok(JobResult::failed(
-                        &job.id,
-                        code,
-                        format!("Process exited with non-zero code: {}", code),
+                    Ok(JobResult::failure(
+                        job.id,
+                        Some(code),
                         duration_ms,
+                        format!("Process exited with non-zero code: {}", code),
                     ))
                 }
             }
-            Ok(Err(e)) => {
-                let err_msg = format!("Failed while waiting for automa plugin process: {}", e);
-                ctx.emit_log(LogChannel::System, &err_msg);
-                Ok(JobResult::failed(&job.id, -1, err_msg, duration_ms))
-            }
-            Err(_) => {
+            Err(e) if e == "Execution timed out" => {
                 ctx.emit_log(
                     LogChannel::System,
                     &format!(
-                        "Execution timed out after {} seconds. Win32 Job Object terminating Chromium process tree...",
-                        timeout_secs
+                        "Execution timed out after {} ms. Win32 Job Object terminating Chromium process tree...",
+                        job.timeout_ms
                     ),
                 );
-                let _ = child.kill().await;
-                Ok(JobResult::timed_out(&job.id, duration_ms))
+                Ok(JobResult::timed_out(job.id, duration_ms))
+            }
+            Err(e) => {
+                let err_msg = format!("Failed while waiting for automa plugin process: {}", e);
+                ctx.emit_log(LogChannel::System, &err_msg);
+                Ok(JobResult::failure(job.id, None, duration_ms, err_msg))
             }
         }
     }
