@@ -137,6 +137,24 @@ impl ExecutionDriver for AutomaDriver {
             cmd.arg("--headless");
         }
 
+        if let Some(browser) = job.payload.get("browser").and_then(|v| v.as_str()) {
+            cmd.arg("--browser").arg(browser);
+        }
+
+        if let Some(browser_id) = job.payload.get("browser_id").and_then(|v| v.as_str()) {
+            cmd.arg("--browser-id").arg(browser_id);
+        }
+
+        if let Some(vars) = job.payload.get("variables").and_then(|v| v.as_object()) {
+            for (k, v) in vars {
+                let val_str = match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                };
+                cmd.arg("-p").arg(format!("{}={}", k, val_str));
+            }
+        }
+
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
