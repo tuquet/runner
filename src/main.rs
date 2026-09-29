@@ -3,18 +3,18 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tqr::core::engine::RunnerEngine;
-use tqr::core::enrollment::EnrollmentClient;
-use tqr::core::environments::{EnvironmentConfig, EnvironmentRegistry};
-use tqr::core::fingerprint::FingerprintEngine;
-use tqr::core::identity::DeviceIdentity;
-use tqr::protocol::schema::{DriverType, Job, JobStatus};
-use tqr::transport::local_channel::LocalRunner;
-use tqr::transport::ws_client::{WsClientConfig, WsRunnerClient};
+use tuquet_runner::core::engine::RunnerEngine;
+use tuquet_runner::core::enrollment::EnrollmentClient;
+use tuquet_runner::core::environments::{EnvironmentConfig, EnvironmentRegistry};
+use tuquet_runner::core::fingerprint::FingerprintEngine;
+use tuquet_runner::core::identity::DeviceIdentity;
+use tuquet_runner::protocol::schema::{DriverType, Job, JobStatus};
+use tuquet_runner::transport::local_channel::LocalRunner;
+use tuquet_runner::transport::ws_client::{WsClientConfig, WsRunnerClient};
 
 #[derive(Parser)]
 #[command(
-    name = "tqr",
+    name = "tuquet-runner",
     version,
     about = "Ultra-fast universal distributed execution engine in Rust",
     long_about = "Executes AI agents, browser workflows, shell commands, and webhooks across distributed nodes."
