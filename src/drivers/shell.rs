@@ -10,6 +10,12 @@ use tracing::{debug, error};
 
 pub struct ShellDriver;
 
+impl Default for ShellDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShellDriver {
     pub fn new() -> Self {
         Self
@@ -76,6 +82,9 @@ impl ExecutionDriver for ShellDriver {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
+        #[cfg(unix)]
+        cmd.process_group(0);
+
         debug!("Spawning shell process: {:?}", cmd);
         let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn shell process: {}", e))?;
 
@@ -103,7 +112,9 @@ impl ExecutionDriver for ShellDriver {
         let mut supervisor = ProcessSupervisor::new();
         let timeout_duration = Duration::from_millis(job.timeout_ms);
 
-        let wait_result = supervisor.wait_with_timeout(&mut child, timeout_duration).await;
+        let wait_result = supervisor
+            .wait_with_timeout_or_cancel(&mut child, timeout_duration, Some(&ctx.cancel_token))
+            .await;
 
         // Drain remaining stream outputs
         let _ = tokio::join!(stdout_handle, stderr_handle);
@@ -126,6 +137,13 @@ impl ExecutionDriver for ShellDriver {
             }
             Err(e) if e == "Execution timed out" => {
                 Ok(JobResult::timed_out(job.id, elapsed))
+            }
+            Err(e) if e == "Execution cancelled" => {
+                ctx.emit_log(
+                    LogChannel::System,
+                    "Execution cancelled by control plane. Process tree terminated.",
+                );
+                Ok(JobResult::cancelled(job.id, elapsed))
             }
             Err(e) => {
                 error!("Process supervisor error: {}", e);

@@ -11,6 +11,12 @@ use tracing::{info, warn};
 
 pub struct AgentDriver;
 
+impl Default for AgentDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentDriver {
     pub fn new() -> Self {
         Self
@@ -179,6 +185,9 @@ impl ExecutionDriver for AgentDriver {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
+        #[cfg(unix)]
+        cmd.process_group(0);
+
         info!(
             "AgentDriver executing {} with prompt ({} chars)",
             bin_name,
@@ -211,11 +220,13 @@ impl ExecutionDriver for AgentDriver {
             }
         });
 
-        // 6. Supervise execution with kernel timeout
+        // 6. Supervise execution with kernel timeout & cancellation
         let mut supervisor = ProcessSupervisor::new();
         let timeout_duration = Duration::from_millis(job.timeout_ms);
 
-        let wait_result = supervisor.wait_with_timeout(&mut child, timeout_duration).await;
+        let wait_result = supervisor
+            .wait_with_timeout_or_cancel(&mut child, timeout_duration, Some(&ctx.cancel_token))
+            .await;
 
         let _ = tokio::join!(stdout_handle, stderr_handle);
         let elapsed = start_time.elapsed().as_millis() as u64;
@@ -235,6 +246,13 @@ impl ExecutionDriver for AgentDriver {
                 }
             }
             Err(e) if e == "Execution timed out" => Ok(JobResult::timed_out(job.id, elapsed)),
+            Err(e) if e == "Execution cancelled" => {
+                ctx.emit_log(
+                    LogChannel::System,
+                    "Agent execution cancelled by control plane. Process tree terminated.",
+                );
+                Ok(JobResult::cancelled(job.id, elapsed))
+            }
             Err(e) => Ok(JobResult::failure(job.id, None, elapsed, e)),
         }
     }

@@ -41,11 +41,12 @@ impl EnrollmentClient {
         let mut builder = reqwest::Client::builder();
 
         // Workstation guardrail: auto-route through local HTTP proxy 127.0.0.1:8118 if available and no proxy is configured in env
-        if std::env::var("HTTP_PROXY").is_err() && std::env::var("http_proxy").is_err() {
-            if std::net::TcpStream::connect("127.0.0.1:8118").is_ok() {
-                if let Ok(proxy) = reqwest::Proxy::all("http://127.0.0.1:8118") {
-                    builder = builder.proxy(proxy);
-                }
+        if std::env::var("HTTP_PROXY").is_err()
+            && std::env::var("http_proxy").is_err()
+            && std::net::TcpStream::connect("127.0.0.1:8118").is_ok()
+        {
+            if let Ok(proxy) = reqwest::Proxy::all("http://127.0.0.1:8118") {
+                builder = builder.proxy(proxy);
             }
         }
 

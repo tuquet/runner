@@ -32,7 +32,7 @@ impl AgentManifest {
     }
 }
 
-/// Capability manifest returned by automa-core browser automation plugin
+/// Capability manifest returned by Tuquet CLI browser automation plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutomaManifest {
     pub protocol: String,

@@ -10,6 +10,12 @@ pub struct ProcessSupervisor {
     pid: Option<u32>,
 }
 
+impl Default for ProcessSupervisor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProcessSupervisor {
     pub fn new() -> Self {
         #[cfg(windows)]
@@ -115,7 +121,10 @@ impl ProcessSupervisor {
             #[cfg(unix)]
             {
                 unsafe {
+                    // Send SIGKILL to process group (child and all its spawned descendants)
                     libc::kill(-(pid as i32), libc::SIGKILL);
+                    // Also send SIGKILL directly to process PID in case it was not group leader
+                    libc::kill(pid as i32, libc::SIGKILL);
                 }
             }
         }
@@ -131,15 +140,40 @@ impl ProcessSupervisor {
         child: &mut Child,
         timeout: Duration,
     ) -> Result<ExitStatus, String> {
+        self.wait_with_timeout_or_cancel(child, timeout, None).await
+    }
+
+    /// Waits for process exit with timeout or cancellation; terminates tree if cancelled or timed out
+    pub async fn wait_with_timeout_or_cancel(
+        &mut self,
+        child: &mut Child,
+        timeout: Duration,
+        cancel_token: Option<&tokio_util::sync::CancellationToken>,
+    ) -> Result<ExitStatus, String> {
         self.attach(child);
 
-        match tokio::time::timeout(timeout, child.wait()).await {
-            Ok(Ok(status)) => Ok(status),
-            Ok(Err(e)) => Err(format!("Process wait error: {}", e)),
-            Err(_) => {
+        tokio::select! {
+            res = child.wait() => {
+                match res {
+                    Ok(status) => Ok(status),
+                    Err(e) => Err(format!("Process wait error: {}", e)),
+                }
+            }
+            _ = tokio::time::sleep(timeout) => {
                 warn!("Job execution timed out after {:?}", timeout);
                 self.terminate_tree(Some(child)).await;
                 Err("Execution timed out".to_string())
+            }
+            _ = async {
+                if let Some(token) = cancel_token {
+                    token.cancelled().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+            } => {
+                warn!("Job execution cancelled by control plane. Terminating process tree...");
+                self.terminate_tree(Some(child)).await;
+                Err("Execution cancelled".to_string())
             }
         }
     }

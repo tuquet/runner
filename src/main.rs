@@ -193,6 +193,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let driver_type = match driver.as_str() {
                 "shell" => DriverType::Shell,
                 "agent" => DriverType::Agent,
+                "automa" => DriverType::Automa,
                 "http" => DriverType::Http,
                 other => DriverType::Custom(other.to_string()),
             };
@@ -278,7 +279,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("================================================================================");
                     println!(" Tuquet Runner (tqr) Environments");
                     println!("================================================================================");
-                    println!(" {:<8} {:<10} {:<38} {}", "STATUS", "ENV", "URL", "DESCRIPTION");
+                    println!(" {:<8} {:<10} {:<38} DESCRIPTION", "STATUS", "ENV", "URL");
                     println!("--------------------------------------------------------------------------------");
 
                     for e in EnvironmentRegistry::list(&config_dir) {

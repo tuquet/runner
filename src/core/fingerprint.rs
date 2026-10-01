@@ -153,6 +153,16 @@ impl FingerprintEngine {
     }
 
     fn probe_automa() -> bool {
+        // 1. Primary: check 'tuquet' unified CLI binary
+        let tuquet_name = if cfg!(windows) { "tuquet.exe" } else { "tuquet" };
+        if let Ok(output) = Command::new(tuquet_name).arg("probe").output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                return stdout.contains("tuquet.automa.v1");
+            }
+        }
+
+        // 2. Legacy alias: check 'automa' binary
         let cmd_name = if cfg!(windows) { "automa.exe" } else { "automa" };
         let mut cmd = Command::new(cmd_name);
         cmd.arg("probe");
@@ -164,7 +174,7 @@ impl FingerprintEngine {
             }
         }
 
-        // Fallback: check 'automa-core' binary
+        // 3. Fallback: check 'automa-core' binary
         let core_name = if cfg!(windows) { "automa-core.exe" } else { "automa-core" };
         if let Ok(output) = Command::new(core_name).arg("probe").output() {
             if output.status.success() {

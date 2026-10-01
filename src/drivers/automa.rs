@@ -11,29 +11,64 @@ use tracing::{info, warn};
 
 pub struct AutomaDriver;
 
+impl Default for AutomaDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AutomaDriver {
     pub fn new() -> Self {
         Self
     }
 
-    /// Resolves the executable path for the automa browser plugin (automa or automa-core)
+    /// Resolves the executable path for the automa browser plugin (tuquet, tuquet-cli, automa, automa-core)
     fn resolve_automa_bin(&self, target: &str) -> String {
-        if target.is_empty() || target == "automa" || target == "automa-core" {
-            if cfg!(windows) {
-                "automa.exe".to_string()
+        let binary_name = if target.is_empty() || target == "tuquet" || target == "tuquet-cli" || target == "automa" || target == "automa-core" {
+            let primary = if cfg!(windows) { "tuquet.exe" } else { "tuquet" };
+            let fallback = if cfg!(windows) { "automa.exe" } else { "automa" };
+            if target == "automa" || target == "automa-core" {
+                fallback
             } else {
-                "automa".to_string()
+                primary
             }
         } else {
-            target.to_string()
+            target
+        };
+
+        if std::path::Path::new(binary_name).exists() {
+            return binary_name.to_string();
         }
+
+        let candidates = [
+            format!("/usr/local/bin/{}", binary_name),
+            format!("/root/tuquet/cli/target/release/{}", binary_name),
+            format!("/root/tuquet/cli/target/debug/{}", binary_name),
+            format!("../cli/target/release/{}", binary_name),
+            format!("../cli/target/debug/{}", binary_name),
+        ];
+
+        for cand in candidates {
+            if std::path::Path::new(&cand).exists() {
+                return cand;
+            }
+        }
+
+        binary_name.to_string()
     }
 
     /// Performs an active capability negotiation and handshake probe with automa-core plugin
     pub async fn probe(&self, bin_name: &str) -> Result<AutomaManifest, String> {
+        let mut cmd = Command::new(bin_name);
+        if bin_name.contains("tuquet") {
+            cmd.arg("automa").arg("probe");
+        } else {
+            cmd.arg("probe");
+        }
+
         let output = tokio::time::timeout(
             Duration::from_secs(4),
-            Command::new(bin_name).arg("probe").output(),
+            cmd.output(),
         )
         .await
         .map_err(|_| format!("Handshake probe timed out for '{}'", bin_name))?
@@ -119,6 +154,9 @@ impl ExecutionDriver for AutomaDriver {
 
         // 3. Assemble execution command
         let mut cmd = Command::new(&bin_name);
+        if bin_name.contains("tuquet") {
+            cmd.arg("automa");
+        }
 
         if let Some(workflow) = job.payload.get("workflow").and_then(|v| v.as_str()) {
             cmd.arg("run").arg("--workflow").arg(workflow);
@@ -158,6 +196,9 @@ impl ExecutionDriver for AutomaDriver {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
+        #[cfg(unix)]
+        cmd.process_group(0);
+
         ctx.emit_log(
             LogChannel::System,
             &format!(
@@ -194,11 +235,13 @@ impl ExecutionDriver for AutomaDriver {
             }
         });
 
-        // 5. Supervise process with Win32 Job Object & Timeout
+        // 5. Supervise process with Win32 Job Object, POSIX Process Groups, Timeout & Cancellation
         let mut supervisor = ProcessSupervisor::new();
         let timeout_duration = Duration::from_millis(job.timeout_ms);
 
-        let wait_result = supervisor.wait_with_timeout(&mut child, timeout_duration).await;
+        let wait_result = supervisor
+            .wait_with_timeout_or_cancel(&mut child, timeout_duration, Some(&ctx.cancel_token))
+            .await;
 
         let _ = tokio::join!(stdout_handle, stderr_handle);
 
@@ -236,6 +279,13 @@ impl ExecutionDriver for AutomaDriver {
                 );
                 Ok(JobResult::timed_out(job.id, duration_ms))
             }
+            Err(e) if e == "Execution cancelled" => {
+                ctx.emit_log(
+                    LogChannel::System,
+                    "Browser automation cancelled by control plane. Process tree terminated.",
+                );
+                Ok(JobResult::cancelled(job.id, duration_ms))
+            }
             Err(e) => {
                 let err_msg = format!("Failed while waiting for automa plugin process: {}", e);
                 ctx.emit_log(LogChannel::System, &err_msg);
@@ -247,5 +297,36 @@ impl ExecutionDriver for AutomaDriver {
     async fn cancel(&self, _job_id: &JobId) -> Result<(), String> {
         info!("Automa driver received cancellation signal. Cleaning up process...");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::schema::DriverType;
+
+    #[test]
+    fn test_automa_driver_can_handle() {
+        let driver = AutomaDriver::new();
+        let job = Job {
+            id: "test-automa-1".to_string(),
+            driver: DriverType::Automa,
+            payload: serde_json::json!({}),
+            cwd: None,
+            env: None,
+            timeout_ms: 10_000,
+            created_at: None,
+        };
+        assert!(driver.can_handle(&job));
+        assert_eq!(driver.name(), "automa");
+    }
+
+    #[test]
+    fn test_resolve_automa_bin() {
+        let driver = AutomaDriver::new();
+        let bin = driver.resolve_automa_bin("tuquet");
+        assert!(!bin.is_empty());
+        // Verify custom target returns custom name
+        assert_eq!(driver.resolve_automa_bin("/custom/bin/runner"), "/custom/bin/runner");
     }
 }

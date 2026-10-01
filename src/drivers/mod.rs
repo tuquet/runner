@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio_util::sync::CancellationToken;
 
 /// Context passed to each driver during job execution
 #[derive(Clone)]
@@ -16,14 +17,21 @@ pub struct ExecutionContext {
     pub job_id: JobId,
     pub log_sender: UnboundedSender<LogChunk>,
     pub masker: Arc<SecretMasker>,
+    pub cancel_token: CancellationToken,
 }
 
 impl ExecutionContext {
-    pub fn new(job_id: impl Into<JobId>, log_sender: UnboundedSender<LogChunk>, masker: Arc<SecretMasker>) -> Self {
+    pub fn new(
+        job_id: impl Into<JobId>,
+        log_sender: UnboundedSender<LogChunk>,
+        masker: Arc<SecretMasker>,
+        cancel_token: CancellationToken,
+    ) -> Self {
         Self {
             job_id: job_id.into(),
             log_sender,
             masker,
+            cancel_token,
         }
     }
 
@@ -56,6 +64,12 @@ pub struct DriverRegistry {
     drivers: HashMap<String, Box<dyn ExecutionDriver>>,
 }
 
+impl Default for DriverRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DriverRegistry {
     pub fn new() -> Self {
         Self {
@@ -67,17 +81,17 @@ impl DriverRegistry {
         self.drivers.insert(driver.name().to_string(), driver);
     }
 
-    pub fn get(&self, name: &str) -> Option<&Box<dyn ExecutionDriver>> {
-        self.drivers.get(name)
+    pub fn get(&self, name: &str) -> Option<&dyn ExecutionDriver> {
+        self.drivers.get(name).map(|b| b.as_ref())
     }
 
-    pub fn find_for_job(&self, job: &Job) -> Option<&Box<dyn ExecutionDriver>> {
+    pub fn find_for_job(&self, job: &Job) -> Option<&dyn ExecutionDriver> {
         match &job.driver {
-            DriverType::Shell => self.drivers.get("shell"),
-            DriverType::Agent => self.drivers.get("agent"),
-            DriverType::Automa => self.drivers.get("automa").or_else(|| self.drivers.get("shell")),
-            DriverType::Http => self.drivers.get("http"),
-            DriverType::Custom(name) => self.drivers.get(name),
+            DriverType::Shell => self.get("shell"),
+            DriverType::Agent => self.get("agent"),
+            DriverType::Automa => self.get("automa").or_else(|| self.get("shell")),
+            DriverType::Http => self.get("http"),
+            DriverType::Custom(name) => self.get(name),
         }
     }
 }

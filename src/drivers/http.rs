@@ -8,6 +8,12 @@ pub struct HttpDriver {
     client: Client,
 }
 
+impl Default for HttpDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HttpDriver {
     pub fn new() -> Self {
         Self {
@@ -66,19 +72,31 @@ impl ExecutionDriver for HttpDriver {
             req = req.json(body);
         }
 
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+        let resp_result = tokio::select! {
+            res = req.send() => res,
+            _ = ctx.cancel_token.cancelled() => {
+                let elapsed = start_time.elapsed().as_millis() as u64;
+                ctx.emit_log(LogChannel::System, "HTTP request cancelled by control plane.");
+                return Ok(JobResult::cancelled(job.id, elapsed));
+            }
+        };
+
+        let resp = resp_result.map_err(|e| format!("HTTP request failed: {}", e))?;
 
         let status = resp.status();
         let status_code = status.as_u16() as i32;
         ctx.emit_log(LogChannel::System, &format!("HTTP Response Status: {}", status));
 
-        let text = resp
-            .text()
-            .await
-            .map_err(|e| format!("Failed to read response body: {}", e))?;
+        let text_result = tokio::select! {
+            t = resp.text() => t,
+            _ = ctx.cancel_token.cancelled() => {
+                let elapsed = start_time.elapsed().as_millis() as u64;
+                ctx.emit_log(LogChannel::System, "HTTP body read cancelled by control plane.");
+                return Ok(JobResult::cancelled(job.id, elapsed));
+            }
+        };
+
+        let text = text_result.map_err(|e| format!("Failed to read response body: {}", e))?;
 
         ctx.emit_log(LogChannel::Stdout, &text);
         let elapsed = start_time.elapsed().as_millis() as u64;
