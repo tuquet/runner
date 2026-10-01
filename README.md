@@ -71,10 +71,10 @@ flowchart TD
 
 ```powershell
 # Add Tuquet bucket
-scoop bucket add tuquet https://github.com/tuquet/tuquet-scoop-bucket
+scoop bucket add tuquet https://github.com/tuquet/scoop-bucket
 
-# Install tqr
-scoop install tqr
+# Install tuquet-runner (supports both 'tuquet-runner' and 'tqr' commands)
+scoop install tuquet-runner
 ```
 
 *Note: Scoop automatically persists `config/` (`.identity.json`, `.machine_id`) and `logs/` across version updates.*
@@ -82,11 +82,11 @@ scoop install tqr
 ### 2. From Source (Cargo)
 
 ```bash
-git clone https://github.com/tuquet/tuquet-runner.git
-cd tuquet-runner
+git clone https://github.com/tuquet/runner.git
+cd runner
 cargo build --release
 ```
-The compiled binary will be placed at `target/release/tqr.exe`.
+The compiled binary will be placed at `target/release/tuquet-runner.exe`.
 
 ---
 

@@ -34,7 +34,7 @@ jobs:
           $version = $tag.TrimStart("v")
           "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
           "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "ZIP_NAME=tqr-v$version-windows-x64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "ZIP_NAME=tuquet-runner-v$version-windows-x64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -55,10 +55,11 @@ jobs:
       - name: Package Binary & Checksum
         shell: pwsh
         run: |
-          $binPath = "target/x86_64-pc-windows-msvc/release/tqr.exe"
+          $binPath = "target/x86_64-pc-windows-msvc/release/tuquet-runner.exe"
           New-Item -ItemType Directory -Path "dist" -Force
+          Copy-Item $binPath -Destination "dist/tuquet-runner.exe"
           Copy-Item $binPath -Destination "dist/tqr.exe"
-          Compress-Archive -Path "dist/tqr.exe" -DestinationPath "$env:ZIP_NAME" -Force
+          Compress-Archive -Path "dist/tuquet-runner.exe", "dist/tqr.exe" -DestinationPath "$env:ZIP_NAME" -Force
           $hash = (Get-FileHash -Algorithm SHA256 "$env:ZIP_NAME").Hash.ToLower()
           "$hash  $env:ZIP_NAME" | Out-File -Encoding ascii "$env:ZIP_NAME.sha256"
           Write-Host "SHA256: $hash"
@@ -73,6 +74,7 @@ jobs:
           files: |
             ${{ env.ZIP_NAME }}
             ${{ env.ZIP_NAME }}.sha256
+            dist/tuquet-runner.exe
             dist/tqr.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

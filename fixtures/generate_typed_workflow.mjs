@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const blocksDistPath = path.resolve(__dirname, '../../tuquet-automa/packages/types/dist/blocks/index.js');
-const workflowDistPath = path.resolve(__dirname, '../../tuquet-automa/packages/types/dist/workflow.js');
+const blocksDistPath = path.resolve(__dirname, '../../automa/packages/types/dist/blocks/index.js');
+const workflowDistPath = path.resolve(__dirname, '../../automa/packages/types/dist/workflow.js');
 const { createBlockNode } = await import(`file://${blocksDistPath}`);
 const { defineWorkflow } = await import(`file://${workflowDistPath}`);
 
