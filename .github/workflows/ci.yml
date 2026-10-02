@@ -47,3 +47,59 @@ jobs:
 
       - name: Run Tests
         run: cargo test --verbose --target ${{ matrix.target }}
+
+  notify:
+    name: Notify Telegram
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          JOB_STATUS: ${{ needs.test.result }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram credentials not found, skipping notification."
+            exit 0
+          fi
+
+          if [ "$JOB_STATUS" = "failure" ]; then
+            ICON="❌"
+            STATUS_TEXT="FAILED"
+          elif [ "$JOB_STATUS" = "cancelled" ]; then
+            ICON="⚠️"
+            STATUS_TEXT="CANCELLED"
+          else
+            ICON="✅"
+            STATUS_TEXT="SUCCESS"
+          fi
+
+          COMMIT_MSG=$(echo "$COMMIT_MESSAGE" | head -n 1 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+          if [ -z "$COMMIT_MSG" ]; then
+            COMMIT_MSG="Triggered by $EVENT_NAME"
+          fi
+
+          TEXT=$(printf "%s <b>GitHub Actions: %s</b>\n\n📦 <b>Repo:</b> <a href=\"%s/%s\">%s</a>\n⚙️ <b>Workflow:</b> %s\n🌿 <b>Branch:</b> <code>%s</code>\n👤 <b>Author:</b> %s\n💬 <b>Commit:</b> %s\n🔗 <a href=\"%s/%s/actions/runs/%s\">View Run Details</a>" \
+            "$ICON" "$STATUS_TEXT" \
+            "$SERVER_URL" "$REPO" "$REPO" \
+            "$WORKFLOW_NAME" \
+            "$BRANCH" \
+            "$ACTOR" \
+            "$COMMIT_MSG" \
+            "$SERVER_URL" "$REPO" "$RUN_ID")
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${TEXT}" \
+            -d "parse_mode=HTML" \
+            -d "disable_web_page_preview=true" > /dev/null || true
