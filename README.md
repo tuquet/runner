@@ -1,21 +1,26 @@
-# ⚡ tqr (`tqr`)
+<div align="center">
+  <img src="./assets/logo.svg" width="76" height="76" alt="Runner Logo" />
+  <h1>Runner</h1>
+  <p><strong>High-Performance Distributed Process Supervision Engine in Rust with Win32 Job Object Sandboxing</strong></p>
 
-> **Ultra-high performance universal distributed execution engine in Rust**. Orchestrates AI Agents (`claude-agy`), native shell scripts, webhooks, and browser automations across distributed nodes with sub-10MB RAM footprint, zero cold-start latency, Win32 kernel-level process supervision, and zero-touch cloud enrollment.
-
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#-installation)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Scoop](https://img.shields.io/badge/Scoop-tuquet%2Ftqr-brightgreen.svg)](#1-windows-via-scoop-recommended)
-[![Command: tqr](https://img.shields.io/badge/CLI-tqr-orange.svg)](#-quick-start)
+  <p>
+    <a href="https://github.com/tuquet/scoop-bucket"><img src="https://img.shields.io/badge/Scoop-tuquet%2Ftqr-brightgreen.svg" alt="Scoop" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" /></a>
+    <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Tokio-orange.svg" alt="Rust" /></a>
+    <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg" alt="Platform" />
+    <img src="https://img.shields.io/badge/CLI-tqr-orange.svg" alt="CLI" />
+  </p>
+</div>
 
 ---
 
 ## 🏗️ System Architecture: Dumb Runner, Smart Cloud
 
-`tqr` decouples the **Control Plane** (Tuquet Cloud / Supabase `runners` plugin) from the **Distributed Execution Plane** (Workstations / Edge Nodes).
+`tqr` decouples the **Control Plane** (Cloud / Supabase `runners` plugin) from the **Distributed Execution Plane** (Workstations / Edge Nodes).
 
 ```mermaid
 flowchart TD
-    subgraph Cloud["Tuquet Cloud (Control Plane)"]
+    subgraph Cloud["Cloud Control Plane"]
         Dashboard["Web Command Center"]
         PluginRunners["Plugin: runners (PostgreSQL 15+)"]
         TableDevices[("runners.devices<br/>- Hardware Fingerprint<br/>- Specs: CPU, RAM, OS<br/>- Capabilities JSON<br/>- Live State: idle, busy")]
@@ -52,7 +57,7 @@ flowchart TD
 ## ✨ Key Features
 
 - **Lightning-Fast (3-Letter CLI `tqr`)**: Optimized developer ergonomics (`tqr info`, `tqr enroll`, `tqr exec`, `tqr worker`).
-- **Zero-Touch Cloud Enrollment (`tqr enroll`)**: Automatically probes BIOS UUID (`Win32_ComputerSystemProduct`), hardware specs (CPU cores, RAM size), and local capabilities (`claude-agy`), enrolling the machine into Tuquet Cloud in sub-second time.
+- **Zero-Touch Cloud Enrollment (`tqr enroll`)**: Automatically probes BIOS UUID (`Win32_ComputerSystemProduct`), hardware specs (CPU cores, RAM size), and local capabilities (`claude-agy`), enrolling the machine into the Cloud Control Plane in sub-second time.
 - **Dumb Runner, Smart Cloud Architecture**:
   - No static YAML drift! Workstations only store a minimal identity anchor in `config/.identity.json` (`device_id` + `device_token`).
   - Runtime configuration (concurrency, timeouts, driver toggles) lives in Cloud PostgreSQL (`runners.devices`) and streams dynamically into the runner's RAM.
@@ -101,21 +106,21 @@ tqr info
 Example Output:
 ```text
 ============================================================
- Tuquet Runner (tqr) System Diagnostics
+ Runner (tqr) System Diagnostics
 ============================================================
  Version:      0.1.0
- Hostname:     HNDW-NDTU6
+ Hostname:     WORKSTATION-01
  Fingerprint:  4C4C4544-0053-5810-8047-B2C04F484234
  Architecture: windows-x86_64
  Resources:    16 CPU Cores | 16070 MB RAM
  Capabilities: ["shell:pwsh", "agent:claude-agy"]
  Supervision:  Win32 Job Objects (Kernel-Level Zero-Zombie)
- Config Path:  C:\Users\ndtu6\.tuquet\config
+ Config Path:  ~/.tuquet/config
 ------------------------------------------------------------
  Enrollment:   ENROLLED (Cloud Active)
  Device ID:    2a9cb9d8-dac6-4017-9214-69b65a458467
  Tenant ID:    b0000000-0000-0000-0000-000000000001
- Device Name:  HNDW-NDTU6
+ Device Name:  WORKSTATION-01
  Cloud URL:    https://api.tuquet.dev
 ============================================================
 ```
@@ -139,7 +144,7 @@ tqr env switch prod
 ```
 
 ### 3. Zero-Touch Cloud Enrollment
-Register your workstation with Tuquet Cloud for a specific environment:
+Register your workstation with the Cloud Control Plane for a specific environment:
 ```powershell
 # Enroll directly into Local Docker Supabase (default)
 tqr enroll
@@ -193,7 +198,7 @@ tqr worker --server wss://hub.tuquet.dev/api/v1/runner/ws --tags "windows,gpu,ai
 | Variable | Description | Default |
 | :--- | :--- | :--- |
 | `TUQUET_ENV` | Target environment for enrollment (`dev`, `local`, `prod`) | `dev` |
-| `TUQUET_CLOUD_URL` | Tuquet Cloud / Supabase REST API endpoint | `https://dswhacsoaxgpfnkaxnhz.supabase.co` |
+| `TUQUET_CLOUD_URL` | Cloud / Supabase REST API endpoint | `https://dswhacsoaxgpfnkaxnhz.supabase.co` |
 | `TUQUET_API_KEY` | Supabase publishable / anon public key | Loaded from environment registry |
 | `TUQUET_ENROLLMENT_TOKEN` | Optional workspace registration pairing token | — |
 | `TUQUET_SERVER` | WebSocket control plane gateway URL | `wss://hub.tuquet.dev/api/v1/runner/ws` |
@@ -201,6 +206,32 @@ tqr worker --server wss://hub.tuquet.dev/api/v1/runner/ws --tags "windows,gpu,ai
 
 ---
 
+## 🌐 Ecosystem
+
+Part of the **Automation & Agent Ecosystem**:
+
+- [Automa](https://github.com/tuquet/automa) — Native Chrome/Edge Desktop UI Automation Browser.
+- [Runner](https://github.com/tuquet/runner) — High-Performance Distributed Process Supervision Engine in Rust.
+- [Browser](https://github.com/tuquet/browser) — High-Performance Headless Web Scraping & Stealth Automation Core.
+- [Cloud](https://github.com/tuquet/cloud) — Enterprise Orchestration & Real-time Task Control Plane.
+- [CLI](https://github.com/tuquet/cli) — Developer Ergonomic CLI & Unified Command Center.
+- [Lib](https://github.com/tuquet/lib) — Monorepo for Shared Enterprise UI & Utilities (`vue-ui`, `vue-table`, `md-export`, `extension-runner`, `lunar`).
+- [Scoop Bucket](https://github.com/tuquet/scoop-bucket) — Official Windows Scoop Distribution Channel.
+
+---
+
 ## 📜 License
 
 Licensed under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+  <samp>
+    <a href="https://tuquet.github.io">Portfolio</a> •
+    <a href="https://tuquet.github.io/cv">CV &amp; Resume</a> •
+    <a href="https://tuquet.github.io/automa">Automa Studio</a> •
+    <a href="https://tuquet.github.io/lib">Component Lab</a> •
+    <a href="https://github.com/tuquet/scoop-bucket">Scoop Bucket</a>
+  </samp>
+</div>
