@@ -162,7 +162,7 @@ impl FingerprintEngine {
             }
         }
 
-        // 2. Legacy alias: check 'automa' binary
+        // 2. Standalone fallback: check 'automa' binary
         let cmd_name = if cfg!(windows) { "automa.exe" } else { "automa" };
         let mut cmd = Command::new(cmd_name);
         cmd.arg("probe");
