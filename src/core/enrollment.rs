@@ -87,7 +87,7 @@ impl EnrollmentClient {
             p_capabilities: specs.capabilities,
             p_metadata: serde_json::json!({
                 "version": env!("CARGO_PKG_VERSION"),
-                "client": "tqr",
+                "client": "runner",
                 "env": env_name
             }),
             p_enrollment_token: enrollment_token,

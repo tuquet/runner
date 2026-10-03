@@ -45,7 +45,7 @@ impl EnvironmentRegistry {
             "prod".to_string(),
             EnvironmentConfig {
                 name: "prod".to_string(),
-                label: "Supabase Cloud Production (Unset - configure with 'tqr env set prod')".to_string(),
+                label: "Supabase Cloud Production (Unset - configure with 'runner env set prod')".to_string(),
                 url: "".to_string(),
                 api_key: None,
             },

@@ -9,11 +9,10 @@ runner:
   server: "wss://hub.tuquet.dev/api/v1/runner/ws"
 
   # Authentication token provided by Web Control Plane
-  token: "tqr_sec_example_token_98765"
+  token: "runner_sec_example_token_98765"
 
   # Node labels for targeted job scheduling
   tags:
-    - "windows"
     - "workstation"
     - "ai-agent"
     - "claude-agy"

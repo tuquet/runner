@@ -3,18 +3,18 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tuquet_runner::core::engine::RunnerEngine;
-use tuquet_runner::core::enrollment::EnrollmentClient;
-use tuquet_runner::core::environments::{EnvironmentConfig, EnvironmentRegistry};
-use tuquet_runner::core::fingerprint::FingerprintEngine;
-use tuquet_runner::core::identity::DeviceIdentity;
-use tuquet_runner::protocol::schema::{DriverType, Job, JobStatus};
-use tuquet_runner::transport::local_channel::LocalRunner;
-use tuquet_runner::transport::ws_client::{WsClientConfig, WsRunnerClient};
+use runner::core::engine::RunnerEngine;
+use runner::core::enrollment::EnrollmentClient;
+use runner::core::environments::{EnvironmentConfig, EnvironmentRegistry};
+use runner::core::fingerprint::FingerprintEngine;
+use runner::core::identity::DeviceIdentity;
+use runner::protocol::schema::{DriverType, Job, JobStatus};
+use runner::transport::local_channel::LocalRunner;
+use runner::transport::ws_client::{WsClientConfig, WsRunnerClient};
 
 #[derive(Parser)]
 #[command(
-    name = "tuquet-runner",
+    name = "runner",
     version,
     about = "Ultra-fast universal distributed execution engine in Rust",
     long_about = "Executes AI agents, browser workflows, shell commands, and webhooks across distributed nodes."
@@ -236,13 +236,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if target_url.is_empty() {
                 eprintln!("\x1b[31m[ERROR] Environment '{}' has no URL configured.\x1b[0m", env);
                 if env.to_lowercase() == "prod" {
-                    eprintln!("Configure production endpoint first: tqr env set prod --url <URL> --key <KEY>");
+                    eprintln!("Configure production endpoint first: runner env set prod --url <URL> --key <KEY>");
                 }
                 std::process::exit(1);
             }
 
             println!("============================================================");
-            println!(" Tuquet Runner (tqr) - Device Enrollment");
+            println!(" Runner - Device Enrollment");
             println!("============================================================");
             let specs = FingerprintEngine::collect(&config_dir);
             println!(" Environment:   {} ({})", env.to_uppercase(), env_config.as_ref().map(|c| c.label.as_str()).unwrap_or("Custom"));
@@ -262,7 +262,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!(" Tenant ID:     {}", identity.tenant_id);
                     println!(" Device Name:   {}", identity.name);
                     println!(" Identity Path: {}", config_dir.join(".identity.json").display());
-                    println!("\n👉 Run 'tqr worker' to start processing cloud jobs.");
+                    println!("\n👉 Run 'runner worker' to start processing cloud jobs.");
                 }
                 Err(e) => {
                     eprintln!("\x1b[31m[ERROR] Enrollment failed: {}\x1b[0m", e);
@@ -277,7 +277,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match action {
                 EnvCommands::List => {
                     println!("================================================================================");
-                    println!(" Tuquet Runner (tqr) Environments");
+                    println!(" Runner Environments");
                     println!("================================================================================");
                     println!(" {:<8} {:<10} {:<38} DESCRIPTION", "STATUS", "ENV", "URL");
                     println!("--------------------------------------------------------------------------------");
@@ -298,9 +298,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     println!("================================================================================");
                     if current_env.is_empty() {
-                        println!("👉 Run 'tqr env switch <dev|local>' to connect.");
+                        println!("👉 Run 'runner env switch <dev|local>' to connect.");
                     } else {
-                        println!("👉 Active environment: \x1b[32m{}\x1b[0m. Switch anytime with: tqr env switch <target>", current_env.to_uppercase());
+                        println!("👉 Active environment: \x1b[32m{}\x1b[0m. Switch anytime with: runner env switch <target>", current_env.to_uppercase());
                     }
                 }
                 EnvCommands::Switch { name } => {
@@ -311,7 +311,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Some(cfg) if !cfg.url.is_empty() => cfg,
                         Some(_) => {
                             eprintln!("\x1b[31m[ERROR] Environment '{}' has not been configured with a URL yet.\x1b[0m", target_name);
-                            eprintln!("Use 'tqr env set {} --url <URL> --key <KEY>' first.", target_name);
+                            eprintln!("Use 'runner env set {} --url <URL> --key <KEY>' first.", target_name);
                             std::process::exit(1);
                         }
                         None => {
@@ -321,7 +321,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
 
                     println!("============================================================");
-                    println!(" Tuquet Runner (tqr) - Switching Environment");
+                    println!(" Runner - Switching Environment");
                     println!("============================================================");
                     if !current_env.is_empty() {
                         println!(" Current Environment: {}", current_env.to_uppercase());
@@ -339,7 +339,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             println!(" Device ID:     {}", identity.device_id);
                             println!(" Cloud URL:     {}", identity.cloud_url);
                             println!(" Identity Path: {}", config_dir.join(".identity.json").display());
-                            println!("\n👉 Run 'tqr worker' to start processing jobs on this environment.");
+                            println!("\n👉 Run 'runner worker' to start processing jobs on this environment.");
                         }
                         Err(e) => {
                             eprintln!("\x1b[31m[ERROR] Enrollment into '{}' failed: {}\x1b[0m", env_cfg.name, e);
@@ -361,7 +361,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Ok(_) => {
                             println!("\x1b[32m[SUCCESS] Environment '{}' configured successfully!\x1b[0m", target_name.to_uppercase());
                             println!(" URL: {}", url);
-                            println!("Run 'tqr env switch {}' to switch to it.", target_name);
+                            println!("Run 'runner env switch {}' to switch to it.", target_name);
                         }
                         Err(e) => {
                             eprintln!("\x1b[31m[ERROR] Failed to save environment: {}\x1b[0m", e);
@@ -401,7 +401,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(|| "wss://hub.tuquet.dev/api/v1/runner/ws".to_string());
 
             println!("============================================================");
-            println!(" Starting Tuquet Runner (tqr) in Worker Daemon Mode");
+            println!(" Starting Runner in Worker Daemon Mode");
             println!("============================================================");
             println!(" Runner ID:   {}", runner_id);
             println!(" Server:      {}", server_url);
@@ -472,7 +472,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match DeviceIdentity::purge(&config_dir) {
                 Ok(_) => {
                     println!("\x1b[32m[SUCCESS] Local device identity purged from {}\x1b[0m", config_dir.join(".identity.json").display());
-                    println!("Workstation is now in a clean, unenrolled state. Run 'tqr env switch <dev|local>' to re-register.");
+                    println!("Workstation is now in a clean, unenrolled state. Run 'runner env switch <dev|local>' to re-register.");
                 }
                 Err(e) => {
                     eprintln!("\x1b[31m[ERROR] Failed to purge identity: {}\x1b[0m", e);
@@ -485,7 +485,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let identity = DeviceIdentity::load(&config_dir).ok().flatten();
 
             println!("============================================================");
-            println!(" Tuquet Runner (tqr) System Diagnostics");
+            println!(" Runner System Diagnostics");
             println!("============================================================");
             println!(" Version:      {}", env!("CARGO_PKG_VERSION"));
             println!(" Hostname:     {}", specs.hostname);
@@ -493,7 +493,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(" Architecture: {}", specs.os_info);
             println!(" Resources:    {} CPU Cores | {} MB RAM", specs.cpu_cores, specs.ram_mb);
             println!(" Capabilities: {:?}", specs.capabilities);
-            println!(" Supervision:  {}", if cfg!(windows) { "Win32 Job Objects (Kernel-Level Zero-Zombie)" } else { "POSIX Process Groups" });
+            println!(" Supervision:  Kernel Process Sandboxing (Zero-Zombie)");
             println!(" Config Path:  {}", config_dir.display());
             println!("------------------------------------------------------------");
             if let Some(id) = identity {
@@ -504,7 +504,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!(" Device Name:  {}", id.name);
                 println!(" Enrolled At:  {}", id.enrolled_at);
             } else {
-                println!(" Enrollment:   NOT ENROLLED (Run 'tqr env switch <dev|local>' to connect)");
+                println!(" Enrollment:   NOT ENROLLED (Run 'runner env switch <dev|local>' to connect)");
             }
             println!("============================================================");
         }

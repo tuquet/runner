@@ -1,5 +1,5 @@
 [package]
-name = "tuquet-runner"
+name = "runner"
 version = "0.1.0"
 edition = "2021"
 authors = ["Tuquet Team"]
@@ -9,11 +9,11 @@ repository = "https://github.com/tuquet/runner"
 readme = "README.md"
 
 [lib]
-name = "tuquet_runner"
+name = "runner"
 path = "src/lib.rs"
 
 [[bin]]
-name = "tuquet-runner"
+name = "runner"
 path = "src/main.rs"
 
 [dependencies]

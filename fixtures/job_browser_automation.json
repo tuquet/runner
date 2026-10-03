@@ -2,7 +2,7 @@
   "id": "job-browser-e2e-001",
   "driver": "automa",
   "payload": {
-    "workflow": "C:\\Users\\ndtu6\\Repository\\tuquet-runner\\fixtures\\test_browser_workflow.json",
+    "workflow": "./fixtures/test_browser_workflow.json",
     "headless": true
   },
   "timeout_ms": 60000
