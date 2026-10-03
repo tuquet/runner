@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./assets/logo.svg" width="76" height="76" alt="Runner Logo" />
+  <img src="https://tuquet.github.io/icons/runner.svg" width="76" height="76" alt="Runner Logo" />
   <h1>Runner</h1>
   <p><strong>High-Performance Distributed Process Supervision Engine in Rust with Kernel Process Tree Sandboxing</strong></p>
 
