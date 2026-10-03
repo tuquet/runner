@@ -1,5 +1,5 @@
 # ==============================================================================
-# Tuquet-Runner Configuration Example
+# Runner Configuration Example
 # ==============================================================================
 runner:
   # Unique node identifier (defaults to hostname + random suffix if omitted)
