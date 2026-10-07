@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build & Package Windows (x86_64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine Release Tag & Version
+        id: vars
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF -like "refs/tags/*") {
+            $env:GITHUB_REF.Replace("refs/tags/", "")
+          } else {
+            "${{ github.event.inputs.tag }}"
+          }
+          $version = $tag.TrimStart("v")
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "ZIP_NAME=runner-v$version-windows-x64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Cargo dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          key: x86_64-pc-windows-msvc
+
+      - name: Run Tests
+        run: cargo test --release --target x86_64-pc-windows-msvc
+
+      - name: Build Release Binary
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Package Binary & Checksum
+        shell: pwsh
+        run: |
+          $binPath = "target/x86_64-pc-windows-msvc/release/runner.exe"
+          New-Item -ItemType Directory -Path "dist" -Force
+          Copy-Item $binPath -Destination "dist/runner.exe"
+          Compress-Archive -Path "dist/runner.exe" -DestinationPath "$env:ZIP_NAME" -Force
+          $hash = (Get-FileHash -Algorithm SHA256 "$env:ZIP_NAME").Hash.ToLower()
+          "$hash  $env:ZIP_NAME" | Out-File -Encoding ascii "$env:ZIP_NAME.sha256"
+          Write-Host "SHA256: $hash"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ env.ZIP_NAME }}
+            ${{ env.ZIP_NAME }}.sha256
+            dist/runner.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Scoop Bucket Excavator
+        if: success()
+        run: |
+          echo "Triggering scoop-bucket excavator auto-update..."
+          gh workflow run excavator.yml -R tuquet/scoop-bucket || true
+        env:
+          GH_TOKEN: ${{ secrets.SCOOP_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
+
+  notify:
+    name: Notify Telegram
+    needs: [build-windows]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: tuquet/bot@main
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          status: ${{ needs.build-windows.result }}
+          type: 'release'
+          tag: ${{ github.ref_name || github.event.inputs.tag }}
+
+

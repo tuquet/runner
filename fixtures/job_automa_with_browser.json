@@ -1,0 +1,41 @@
+{
+  "id": "job-automa-stealth-001",
+  "driver": "automa",
+  "payload": {
+    "workflow": {
+      "path": "./fixtures/test_browser_workflow.json",
+      "variables": {
+        "target_domain": "example.com",
+        "max_retries": 3
+      }
+    },
+    "debug": true,
+    "browser": {
+      "type": "chromium",
+      "version": "148",
+      "profileId": "sandbox_worker_01",
+      "headless": true,
+      "proxy": {
+        "server": "socks5://127.0.0.1:1080",
+        "disableUdp": true
+      },
+      "fingerprint": {
+        "seed": 133742,
+        "platform": "windows",
+        "platformVersion": "10.0.0",
+        "brand": "Chrome",
+        "brandVersion": "148.0.7778.215",
+        "hardwareConcurrency": 8,
+        "timezone": "Asia/Ho_Chi_Minh",
+        "lang": "vi-VN",
+        "acceptLang": "vi-VN,vi,en-US,en"
+      },
+      "windowSize": {
+        "width": 1920,
+        "height": 1080
+      },
+      "closeBrowserOnFinish": true
+    }
+  },
+  "timeout_ms": 120000
+}

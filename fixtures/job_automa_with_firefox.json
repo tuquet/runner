@@ -1,0 +1,28 @@
+{
+  "id": "job-automa-firefox-001",
+  "driver": "automa",
+  "payload": {
+    "workflow": {
+      "path": "./fixtures/test_browser_workflow.json",
+      "variables": {
+        "browser_engine": "gecko"
+      }
+    },
+    "debug": true,
+    "browser": {
+      "type": "firefox",
+      "profileId": "firefox_sandbox_01",
+      "headless": true,
+      "proxy": {
+        "server": "socks5://127.0.0.1:1080",
+        "disableUdp": true
+      },
+      "windowSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "closeBrowserOnFinish": true
+    }
+  },
+  "timeout_ms": 60000
+}

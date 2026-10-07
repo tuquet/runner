@@ -1,0 +1,13 @@
+{
+  "id": "job-browser-probe-001",
+  "driver": "browser",
+  "payload": {
+    "action": "status",
+    "browser": {
+      "type": "stealth",
+      "version": "148",
+      "headless": true
+    }
+  },
+  "timeout_ms": 30000
+}

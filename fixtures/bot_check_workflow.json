@@ -1,0 +1,81 @@
+{
+  "name": "Bot Detection Bypass Audit Workflow",
+  "description": "Navigates to https://bot.sannysoft.com, evaluates bot detection indicators in DOM, and logs verification result",
+  "drawflow": {
+    "nodes": [
+      {
+        "id": "node-trigger",
+        "label": "trigger",
+        "data": {
+          "type": "manual"
+        }
+      },
+      {
+        "id": "node-new-tab",
+        "label": "new-tab",
+        "data": {
+          "url": "https://bot.sannysoft.com",
+          "active": true
+        }
+      },
+      {
+        "id": "node-delay",
+        "label": "delay",
+        "data": {
+          "time": 3000
+        }
+      },
+      {
+        "id": "node-js",
+        "label": "javascript-code",
+        "data": {
+          "code": "const res = { ua: document.querySelector('#user-agent-result')?.innerText?.trim(), webdriver: document.querySelector('#webdriver-result')?.innerText?.trim(), chrome: document.querySelector('#chrome-result')?.innerText?.trim() }; console.log('TUQUET_BOT_CHECK_PASSED:', JSON.stringify(res));",
+          "context": "webpage",
+          "preloadScripts": [],
+          "timeout": 5000
+        }
+      },
+      {
+        "id": "node-delay-end",
+        "label": "delay",
+        "data": {
+          "time": 1000
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-1",
+        "source": "node-trigger",
+        "target": "node-new-tab",
+        "sourceHandle": "node-trigger-output-1",
+        "targetHandle": "node-new-tab-input-1"
+      },
+      {
+        "id": "edge-2",
+        "source": "node-new-tab",
+        "target": "node-delay",
+        "sourceHandle": "node-new-tab-output-1",
+        "targetHandle": "node-delay-input-1"
+      },
+      {
+        "id": "edge-3",
+        "source": "node-delay",
+        "target": "node-js",
+        "sourceHandle": "node-delay-output-1",
+        "targetHandle": "node-js-input-1"
+      },
+      {
+        "id": "edge-4",
+        "source": "node-js",
+        "target": "node-delay-end",
+        "sourceHandle": "node-js-output-1",
+        "targetHandle": "node-delay-end-input-1"
+      }
+    ]
+  },
+  "settings": {
+    "debugMode": false,
+    "saveLog": true
+  }
+}

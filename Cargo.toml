@@ -1,0 +1,65 @@
+[package]
+name = "runner"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tuquet Team"]
+description = "Ultra-high performance universal distributed execution engine in Rust"
+license = "MIT"
+repository = "https://github.com/tuquet/runner"
+readme = "README.md"
+
+[lib]
+name = "runner"
+path = "src/lib.rs"
+
+[[bin]]
+name = "runner"
+path = "src/main.rs"
+
+[dependencies]
+# Async Runtime & Concurrency
+tokio = { version = "1.43", features = ["full"] }
+tokio-util = { version = "0.7" }
+futures-util = "0.3"
+async-trait = "0.1"
+
+# CLI Parsing
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Networking & WebSockets
+tokio-tungstenite = { version = "0.26", features = ["connect", "handshake"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Logging & Telemetry
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+uuid = { version = "1.11", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.11"
+command-group = { version = "5.0", features = ["with-tokio"] }
+
+# OS-Specific Process Supervision & System Info
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+    "Win32_System_SystemInformation",
+    "Win32_Foundation",
+    "Win32_Security"
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
