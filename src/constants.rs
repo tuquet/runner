@@ -24,8 +24,8 @@ pub const DEFAULT_LOCAL_SUPABASE_URL: &str = "http://127.0.0.1:54321";
 pub const DEFAULT_DEV_SUPABASE_URL: &str = "https://dswhacsoaxgpfnkaxnhz.supabase.co";
 
 /// Default API keys for environments
-pub const DEFAULT_LOCAL_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-pub const DEFAULT_DEV_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzd2hhY3NvYXhncGZua2F4bmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyOTEzMzcsImV4cCI6MjEwNTg2NzMzN30.QRdxE3CPCF8CtliOtSUcSFO-jbKi99uM2AKlJgKt6RQ";
+pub const DEFAULT_LOCAL_ANON_KEY: &str = "specter-placeholder-supabase-local-anon-key";
+pub const DEFAULT_DEV_ANON_KEY: &str = "specter-placeholder-supabase-dev-anon-key";
 
 /// Canonical SSOT directory and filenames
 pub const DEFAULT_SSOT_DIR_NAME: &str = ".specter";
