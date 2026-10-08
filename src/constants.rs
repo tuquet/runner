@@ -49,3 +49,11 @@ pub const ENV_SPECTER_ENROLLMENT_TOKEN: &str = "SPECTER_ENROLLMENT_TOKEN";
 pub const ENV_SPECTER_SERVER: &str = "SPECTER_SERVER";
 pub const ENV_SPECTER_TOKEN: &str = "SPECTER_TOKEN";
 pub const ENV_SPECTER_RUNNER_ID: &str = "SPECTER_RUNNER_ID";
+
+/// Standard Message Catalog for Runner Daemon
+pub const MSG_JOB_CANCELLED: &str = "Received Ctrl+C signal. Safely terminating job execution...";
+pub const MSG_ENROLLMENT_SUCCESS: &str = "Workstation successfully enrolled with Specter Cloud!";
+pub const MSG_SHUTDOWN_SIGNAL: &str = "Received termination signal (Ctrl+C). Initiating graceful shutdown...";
+pub const MSG_SHUTDOWN_CLEAN: &str = "Runner worker daemon exited cleanly.";
+pub const MSG_REVOCATION_DETECTED: &str = "Cloud device identity revocation detected! Purging credentials...";
+pub const MSG_IDENTITY_PURGED: &str = "Local device identity purged.";

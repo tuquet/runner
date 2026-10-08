@@ -8,6 +8,7 @@ use runner::core::enrollment::EnrollmentClient;
 use runner::core::environments::{EnvironmentConfig, EnvironmentRegistry};
 use runner::core::fingerprint::FingerprintEngine;
 use runner::core::identity::DeviceIdentity;
+use runner::core::Notify;
 use runner::protocol::schema::{DriverType, Job, JobStatus};
 use runner::transport::local_channel::LocalRunner;
 use runner::transport::ws_client::{WsClientConfig, WsRunnerClient};
@@ -164,7 +165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Commands::Run { file } => {
             if !file.exists() {
-                eprintln!("\x1b[31m[ERROR] File '{}' not found.\x1b[0m", file.display());
+                Notify::error(format!("File '{}' not found.", file.display()));
                 std::process::exit(1);
             }
 
@@ -175,19 +176,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let result = tokio::select! {
                 res = local_runner.run_job(job) => res,
                 _ = tokio::signal::ctrl_c() => {
-                    eprintln!("\n\x1b[33m[CANCELLED] Received Ctrl+C signal. Safely terminating job execution...\x1b[0m");
+                    Notify::cancelled(runner::constants::MSG_JOB_CANCELLED);
                     tracing::info!("Received Ctrl+C interrupt. Exiting job execution cleanly.");
                     std::process::exit(130);
                 }
             };
 
             if result.status == JobStatus::Completed {
-                println!("\n\x1b[32m[SUCCESS] Job completed in {}ms\x1b[0m", result.duration_ms);
+                Notify::success(format!("Job completed in {}ms", result.duration_ms));
                 std::process::exit(0);
             } else {
-                eprintln!("\n\x1b[31m[FAILED] Job failed with status {:?} ({}ms): {:?}\x1b[0m",
+                Notify::failed(format!("Job failed with status {:?} ({}ms): {:?}",
                     result.status, result.duration_ms, result.error
-                );
+                ));
                 std::process::exit(result.exit_code.unwrap_or(1));
             }
         }
@@ -229,17 +230,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let result = tokio::select! {
                 res = local_runner.run_job(job) => res,
                 _ = tokio::signal::ctrl_c() => {
-                    eprintln!("\n\x1b[33m[CANCELLED] Received Ctrl+C signal. Safely terminating ad-hoc execution...\x1b[0m");
+                    Notify::cancelled("Received Ctrl+C signal. Safely terminating ad-hoc execution...");
                     tracing::info!("Received Ctrl+C interrupt. Exiting ad-hoc execution cleanly.");
                     std::process::exit(130);
                 }
             };
 
             if result.status == JobStatus::Completed {
-                println!("\n\x1b[32m[SUCCESS] Execution finished in {}ms\x1b[0m", result.duration_ms);
+                Notify::success(format!("Execution finished in {}ms", result.duration_ms));
                 std::process::exit(0);
             } else {
-                eprintln!("\n\x1b[31m[FAILED] Execution failed ({:?}): {:?}\x1b[0m", result.status, result.error);
+                Notify::failed(format!("Execution failed ({:?}): {:?}", result.status, result.error));
                 std::process::exit(result.exit_code.unwrap_or(1));
             }
         }
@@ -250,16 +251,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let target_key = key.or_else(|| env_config.as_ref().and_then(|c| c.api_key.clone()));
 
             if target_url.is_empty() {
-                eprintln!("\x1b[31m[ERROR] Environment '{}' has no URL configured.\x1b[0m", env);
+                Notify::error(format!("Environment '{}' has no URL configured.", env));
                 if env.to_lowercase() == "prod" {
                     eprintln!("Configure production endpoint first: runner env set prod --url <URL> --key <KEY>");
                 }
                 std::process::exit(1);
             }
 
-            println!("============================================================");
-            println!(" Runner - Device Enrollment");
-            println!("============================================================");
+            Notify::header("Runner - Device Enrollment");
             let specs = FingerprintEngine::collect(&config_dir);
             println!(" Environment:   {} ({})", env.to_uppercase(), env_config.as_ref().map(|c| c.label.as_str()).unwrap_or("Custom"));
             println!(" Fingerprint:   {}", specs.fingerprint);
@@ -267,12 +266,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(" Specs:         {} cores, {} MB RAM ({})", specs.cpu_cores, specs.ram_mb, specs.os_info);
             println!(" Capabilities:  {:?}", specs.capabilities);
             println!(" Connecting to: {}", target_url);
-            println!("============================================================");
+            Notify::divider();
 
             let client = EnrollmentClient::new();
             match client.enroll(&target_url, target_key.as_deref(), token, &env, &config_dir).await {
                 Ok(identity) => {
-                    println!("\x1b[32m[SUCCESS] Workstation successfully enrolled with Specter Cloud!\x1b[0m");
+                    Notify::success(runner::constants::MSG_ENROLLMENT_SUCCESS);
                     println!(" Environment:   {}", identity.env.to_uppercase());
                     println!(" Device ID:     {}", identity.device_id);
                     println!(" Tenant ID:     {}", identity.tenant_id);
@@ -281,7 +280,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("\n👉 Run 'runner worker' to start processing cloud jobs.");
                 }
                 Err(e) => {
-                    eprintln!("\x1b[31m[ERROR] Enrollment failed: {}\x1b[0m", e);
+                    Notify::error(format!("Enrollment failed: {}", e));
                     std::process::exit(1);
                 }
             }
@@ -326,39 +325,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let env_cfg = match target_env {
                         Some(cfg) if !cfg.url.is_empty() => cfg,
                         Some(_) => {
-                            eprintln!("\x1b[31m[ERROR] Environment '{}' has not been configured with a URL yet.\x1b[0m", target_name);
+                            Notify::error(format!("Environment '{}' has not been configured with a URL yet.", target_name));
                             eprintln!("Use 'runner env set {} --url <URL> --key <KEY>' first.", target_name);
                             std::process::exit(1);
                         }
                         None => {
-                            eprintln!("\x1b[31m[ERROR] Unknown environment: '{}'. Available: dev, local, prod\x1b[0m", target_name);
+                            Notify::error(format!("Unknown environment: '{}'. Available: dev, local, prod", target_name));
                             std::process::exit(1);
                         }
                     };
 
-                    println!("============================================================");
-                    println!(" Runner - Switching Environment");
-                    println!("============================================================");
+                    Notify::header("Runner - Switching Environment");
                     if !current_env.is_empty() {
-                        println!(" Current Environment: {}", current_env.to_uppercase());
+                        Notify::key_val("Current Env", current_env.to_uppercase());
                     }
-                    println!(" Target Environment:  {} ({})", env_cfg.name.to_uppercase(), env_cfg.url);
-                    println!(" Purging old credentials...");
+                    Notify::key_val("Target Env", format!("{} ({})", env_cfg.name.to_uppercase(), env_cfg.url));
+                    Notify::info("Purging old credentials...");
                     let _ = DeviceIdentity::purge(&config_dir);
 
-                    println!(" Enrolling into {}...", env_cfg.name.to_uppercase());
+                    Notify::info(format!("Enrolling into {}...", env_cfg.name.to_uppercase()));
                     let client = EnrollmentClient::new();
                     match client.enroll(&env_cfg.url, env_cfg.api_key.as_deref(), None, &env_cfg.name, &config_dir).await {
                         Ok(identity) => {
-                            println!("\x1b[32m[SUCCESS] Successfully switched and enrolled into {}!\x1b[0m", env_cfg.name.to_uppercase());
-                            println!(" Environment:   {}", identity.env.to_uppercase());
-                            println!(" Device ID:     {}", identity.device_id);
-                            println!(" Cloud URL:     {}", identity.cloud_url);
-                            println!(" Identity Path: {}", config_dir.join(runner::constants::FILE_IDENTITY_JSON).display());
+                            Notify::success(format!("Successfully switched and enrolled into {}!", env_cfg.name.to_uppercase()));
+                            Notify::key_val("Environment", identity.env.to_uppercase());
+                            Notify::key_val("Device ID", identity.device_id);
+                            Notify::key_val("Cloud URL", identity.cloud_url);
+                            Notify::key_val("Identity Path", config_dir.join(runner::constants::FILE_IDENTITY_JSON).display());
                             println!("\n👉 Run 'runner worker' to start processing jobs on this environment.");
                         }
                         Err(e) => {
-                            eprintln!("\x1b[31m[ERROR] Enrollment into '{}' failed: {}\x1b[0m", env_cfg.name, e);
+                            Notify::error(format!("Enrollment into '{}' failed: {}", env_cfg.name, e));
                             std::process::exit(1);
                         }
                     }
@@ -375,12 +372,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     match EnvironmentRegistry::set(cfg, &config_dir) {
                         Ok(_) => {
-                            println!("\x1b[32m[SUCCESS] Environment '{}' configured successfully!\x1b[0m", target_name.to_uppercase());
-                            println!(" URL: {}", url);
+                            Notify::success(format!("Environment '{}' configured successfully!", target_name.to_uppercase()));
+                            Notify::key_val("URL", url);
                             println!("Run 'runner env switch {}' to switch to it.", target_name);
                         }
                         Err(e) => {
-                            eprintln!("\x1b[31m[ERROR] Failed to save environment: {}\x1b[0m", e);
+                            Notify::error(format!("Failed to save environment: {}", e));
                             std::process::exit(1);
                         }
                     }
@@ -416,15 +413,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }))
                 .unwrap_or_else(|| runner::constants::DEFAULT_WEBSOCKET_HUB.to_string());
 
-            println!("============================================================");
-            println!(" Starting Runner in Worker Daemon Mode");
-            println!("============================================================");
-            println!(" Runner ID:   {}", runner_id);
-            println!(" Server:      {}", server_url);
-            println!(" OS/Arch:     {}/{}", std::env::consts::OS, std::env::consts::ARCH);
-            println!(" Tags:        {:?}", tags);
-            println!(" Environment: {}", loaded_identity.as_ref().map(|i| i.env.to_uppercase()).unwrap_or_else(|| "STANDALONE".to_string()));
-            println!("============================================================");
+            Notify::header("Starting Runner in Worker Daemon Mode");
+            Notify::key_val("Runner ID", &runner_id);
+            Notify::key_val("Server", &server_url);
+            Notify::key_val("OS/Arch", format!("{}/{}", std::env::consts::OS, std::env::consts::ARCH));
+            Notify::key_val("Tags", format!("{:?}", tags));
+            Notify::key_val("Environment", loaded_identity.as_ref().map(|i| i.env.to_uppercase()).unwrap_or_else(|| "STANDALONE".to_string()));
+            Notify::divider();
 
             // Spawn cloud heartbeat task if device identity is present
             if let Some(ref ident) = loaded_identity {
@@ -453,15 +448,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 tracing::debug!("Cloud heartbeat sent successfully");
                             }
                             Ok(false) => {
-                                eprintln!("\n\x1b[33m[REVOCATION DETECTED] Cloud device identity {} was removed from runners.devices!\x1b[0m", device_id);
-                                eprintln!("Purging local credentials and initiating self-healing re-enrollment...");
+                                eprintln!();
+                                Notify::revocation(format!("Cloud device identity {} was removed from runners.devices!", device_id));
+                                Notify::info("Purging local credentials and initiating self-healing re-enrollment...");
                                 let _ = DeviceIdentity::purge(&config_dir_clone);
                                 match client.enroll(&cloud_url, api_key.as_deref(), None, &env_name, &config_dir_clone).await {
                                     Ok(new_id) => {
-                                        println!("\x1b[32m[SELF-HEALING RECOVERED] Fresh Device ID assigned: {}\x1b[0m", new_id.device_id);
+                                        Notify::self_healing(format!("Fresh Device ID assigned: {}", new_id.device_id));
                                     }
                                     Err(e) => {
-                                        eprintln!("\x1b[31m[SELF-HEALING FAILED] Re-enrollment failed: {}\x1b[0m", e);
+                                        Notify::self_healing_failed(format!("Re-enrollment failed: {}", e));
                                     }
                                 }
                                 break;
@@ -489,7 +485,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 res = tokio::signal::ctrl_c() => {
                     match res {
                         Ok(()) => {
-                            println!("\n\x1b[33m[SHUTDOWN] Received termination signal (Ctrl+C). Initiating graceful shutdown...\x1b[0m");
+                            println!();
+                            Notify::shutdown(runner::constants::MSG_SHUTDOWN_SIGNAL);
                             tracing::info!("Received Ctrl+C interrupt signal. Gracefully stopping runner worker daemon...");
                         }
                         Err(err) => {
@@ -498,16 +495,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-            println!("\x1b[32m[SHUTDOWN] Runner worker exited cleanly.\x1b[0m");
+            Notify::shutdown_clean(runner::constants::MSG_SHUTDOWN_CLEAN);
         }
         Commands::Purge => {
             match DeviceIdentity::purge(&config_dir) {
                 Ok(_) => {
-                    println!("\x1b[32m[SUCCESS] Local device identity purged from {}\x1b[0m", config_dir.join(runner::constants::FILE_IDENTITY_JSON).display());
+                    Notify::success(format!("Local device identity purged from {}", config_dir.join(runner::constants::FILE_IDENTITY_JSON).display()));
                     println!("Workstation is now in a clean, unenrolled state. Run 'runner env switch <dev|local>' to re-register.");
                 }
                 Err(e) => {
-                    eprintln!("\x1b[31m[ERROR] Failed to purge identity: {}\x1b[0m", e);
+                    Notify::error(format!("Failed to purge identity: {}", e));
                     std::process::exit(1);
                 }
             }
@@ -516,29 +513,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let specs = FingerprintEngine::collect(&config_dir);
             let identity = DeviceIdentity::load(&config_dir).ok().flatten();
 
-            println!("============================================================");
-            println!(" Runner System Diagnostics");
-            println!("============================================================");
-            println!(" Version:      {}", env!("CARGO_PKG_VERSION"));
-            println!(" Hostname:     {}", specs.hostname);
-            println!(" Fingerprint:  {}", specs.fingerprint);
-            println!(" Architecture: {}", specs.os_info);
-            println!(" Resources:    {} CPU Cores | {} MB RAM", specs.cpu_cores, specs.ram_mb);
-            println!(" Capabilities: {:?}", specs.capabilities);
-            println!(" Supervision:  Kernel Process Sandboxing (Zero-Zombie)");
-            println!(" Config Path:  {}", config_dir.display());
-            println!("------------------------------------------------------------");
+            Notify::header("Runner System Diagnostics");
+            Notify::key_val("Version", env!("CARGO_PKG_VERSION"));
+            Notify::key_val("Hostname", &specs.hostname);
+            Notify::key_val("Fingerprint", &specs.fingerprint);
+            Notify::key_val("Architecture", &specs.os_info);
+            Notify::key_val("Resources", format!("{} CPU Cores | {} MB RAM", specs.cpu_cores, specs.ram_mb));
+            Notify::key_val("Capabilities", format!("{:?}", specs.capabilities));
+            Notify::key_val("Supervision", "Kernel Process Sandboxing (Zero-Zombie)");
+            Notify::key_val("Config Path", config_dir.display());
+            Notify::divider();
             if let Some(id) = identity {
-                println!(" Enrollment:   ENROLLED");
-                println!(" Environment:  {} ({})", id.env.to_uppercase(), id.cloud_url);
-                println!(" Device ID:    {}", id.device_id);
-                println!(" Tenant ID:    {}", id.tenant_id);
-                println!(" Device Name:  {}", id.name);
-                println!(" Enrolled At:  {}", id.enrolled_at);
+                Notify::key_val("Enrollment", "ENROLLED");
+                Notify::key_val("Environment", format!("{} ({})", id.env.to_uppercase(), id.cloud_url));
+                Notify::key_val("Device ID", id.device_id);
+                Notify::key_val("Tenant ID", id.tenant_id);
+                Notify::key_val("Device Name", id.name);
+                Notify::key_val("Enrolled At", id.enrolled_at);
             } else {
-                println!(" Enrollment:   NOT ENROLLED (Run 'runner env switch <dev|local>' to connect)");
+                Notify::key_val("Enrollment", "NOT ENROLLED (Run 'runner env switch <dev|local>' to connect)");
             }
-            println!("============================================================");
+            Notify::divider();
         }
     }
 
