@@ -23,12 +23,12 @@ impl BrowserDriver {
         Self
     }
 
-    /// Resolves the executable path for the browser manager (tuquet, tuquet-browser, browser)
+    /// Resolves the executable path for the browser manager (specter, browser)
     fn resolve_browser_bin(&self, target: &str) -> String {
-        let binary_name = if target.is_empty() || target == "specter" || target == "tuquet" || target == "tuquet-cli" || target == "browser" || target == "tuquet-browser" {
+        let binary_name = if target.is_empty() || target == "specter" || target == "browser" {
             let primary = if cfg!(windows) { "specter.exe" } else { "specter" };
-            let fallback = if cfg!(windows) { "tuquet-browser.exe" } else { "tuquet-browser" };
-            if target == "browser" || target == "tuquet-browser" {
+            let fallback = if cfg!(windows) { "browser.exe" } else { "browser" };
+            if target == "browser" {
                 fallback
             } else {
                 primary
@@ -45,8 +45,8 @@ impl BrowserDriver {
         let candidates = [
             format!("/usr/local/bin/{}", binary_name),
             format!("{}/.specter/bin/{}", home_dir, binary_name),
-            format!("{}/tuquet/cli/target/release/{}", home_dir, binary_name),
-            format!("{}/tuquet/cli/target/debug/{}", home_dir, binary_name),
+            format!("{}/Repository/tuquet/cli/target/release/{}", home_dir, binary_name),
+            format!("{}/Repository/tuquet/cli/target/debug/{}", home_dir, binary_name),
             format!("../cli/target/release/{}", binary_name),
             format!("../cli/target/debug/{}", binary_name),
         ];
@@ -60,10 +60,10 @@ impl BrowserDriver {
         binary_name.to_string()
     }
 
-    /// Performs active capability discovery probe with tuquet browser subsystem
+    /// Performs active capability discovery probe with specter browser subsystem
     pub async fn probe(&self, bin_name: &str) -> Result<BrowserManifest, String> {
         let mut cmd = Command::new(bin_name);
-        if (bin_name.contains("specter") || bin_name.contains("tuquet")) && !bin_name.contains("tuquet-browser") {
+        if bin_name.contains("specter") {
             cmd.arg("browser").arg("status");
         } else {
             cmd.arg("status");
@@ -82,7 +82,7 @@ impl BrowserDriver {
         channels.insert("lts".to_string(), "148.0.7778.215".to_string());
 
         let manifest = BrowserManifest {
-            protocol: "tuquet.browser.v1".to_string(),
+            protocol: "specter.browser.v1".to_string(),
             name: "antidetect-chromium".to_string(),
             version: "148.0.7778.215".to_string(),
             engine: "adryfish/fingerprint-chromium".to_string(),
@@ -122,7 +122,7 @@ impl ExecutionDriver for BrowserDriver {
 
         // 1. Extract typed browser payload
         let payload: BrowserJobPayload = serde_json::from_value(job.payload.clone()).unwrap_or_default();
-        let target = payload.target.as_deref().unwrap_or("tuquet");
+        let target = payload.target.as_deref().unwrap_or("specter");
         let bin_name = self.resolve_browser_bin(target);
 
         // 2. Handshake / Discovery
@@ -133,7 +133,7 @@ impl ExecutionDriver for BrowserDriver {
 
         // 3. Assemble execution command
         let mut cmd = Command::new(&bin_name);
-        let is_master = bin_name.contains("specter") || (bin_name.contains("tuquet") && !bin_name.contains("tuquet-browser"));
+        let is_master = bin_name.contains("specter");
         if is_master {
             cmd.arg("browser");
         }
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn test_resolve_browser_bin() {
         let driver = BrowserDriver::new();
-        let bin = driver.resolve_browser_bin("tuquet");
+        let bin = driver.resolve_browser_bin("specter");
         assert!(!bin.is_empty());
         assert_eq!(driver.resolve_browser_bin("/custom/bin/browser"), "/custom/bin/browser");
     }

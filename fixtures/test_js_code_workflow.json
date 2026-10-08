@@ -22,7 +22,7 @@
         "id": "node-js",
         "label": "javascript-code",
         "data": {
-          "code": "console.log('Tuquet JS Execution Success:', document.title);",
+          "code": "console.log('Specter JS Execution Success:', document.title);",
           "context": "webpage",
           "preloadScripts": [],
           "timeout": 5000

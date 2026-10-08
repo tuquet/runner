@@ -78,22 +78,22 @@ enum Commands {
         #[arg(long, default_value_t = 300000)]
         timeout: u64,
     },
-    /// Enroll this machine with Tuquet Cloud (zero-touch device registration)
+    /// Enroll this machine with Specter Cloud (zero-touch device registration)
     Enroll {
         /// Target environment: local (default), dev, or prod
-        #[arg(short, long, env = "TUQUET_ENV", default_value = "local")]
+        #[arg(short, long, env = "SPECTER_ENV", default_value = "local")]
         env: String,
 
-        /// Custom Tuquet Cloud / Supabase URL (overrides environment default)
-        #[arg(short, long, env = "TUQUET_CLOUD_URL")]
+        /// Custom Specter Cloud / Supabase URL (overrides environment default)
+        #[arg(short, long, env = "SPECTER_CLOUD_URL")]
         url: Option<String>,
 
         /// Custom Supabase publishable / anon key (overrides environment default)
-        #[arg(short, long, env = "TUQUET_API_KEY")]
+        #[arg(short, long, env = "SPECTER_API_KEY")]
         key: Option<String>,
 
         /// Optional workspace enrollment token
-        #[arg(short, long, env = "TUQUET_ENROLLMENT_TOKEN")]
+        #[arg(short, long, env = "SPECTER_ENROLLMENT_TOKEN")]
         token: Option<String>,
     },
     /// Manage and switch environments (dev, local, prod)
@@ -103,16 +103,16 @@ enum Commands {
     },
     /// Start in background worker daemon mode connecting outbound to Web Control Plane
     Worker {
-        /// Web Control Plane WebSocket endpoint (e.g. wss://hub.tuquet.dev/api/v1/runner/ws)
-        #[arg(short, long, env = "TUQUET_SERVER")]
+        /// Web Control Plane WebSocket endpoint (e.g. wss://hub.specter.dev/api/v1/runner/ws)
+        #[arg(short, long, env = "SPECTER_SERVER")]
         server: Option<String>,
 
         /// Authentication token for the runner
-        #[arg(short, long, env = "TUQUET_TOKEN")]
+        #[arg(short, long, env = "SPECTER_TOKEN")]
         token: Option<String>,
 
         /// Unique runner node ID (defaults to enrolled device_id or hostname-uuid)
-        #[arg(long, env = "TUQUET_RUNNER_ID")]
+        #[arg(long, env = "SPECTER_RUNNER_ID")]
         id: Option<String>,
 
         /// Comma-separated tags (e.g. windows,workstation,gpu)
@@ -272,7 +272,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let client = EnrollmentClient::new();
             match client.enroll(&target_url, target_key.as_deref(), token, &env, &config_dir).await {
                 Ok(identity) => {
-                    println!("\x1b[32m[SUCCESS] Workstation successfully enrolled with Tuquet Cloud!\x1b[0m");
+                    println!("\x1b[32m[SUCCESS] Workstation successfully enrolled with Specter Cloud!\x1b[0m");
                     println!(" Environment:   {}", identity.env.to_uppercase());
                     println!(" Device ID:     {}", identity.device_id);
                     println!(" Tenant ID:     {}", identity.tenant_id);
@@ -414,7 +414,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     format!("{}/api/v1/runner/ws", ws_base)
                 }))
-                .unwrap_or_else(|| "wss://hub.tuquet.dev/api/v1/runner/ws".to_string());
+                .unwrap_or_else(|| "wss://hub.specter.dev/api/v1/runner/ws".to_string());
 
             println!("============================================================");
             println!(" Starting Runner in Worker Daemon Mode");

@@ -26,15 +26,15 @@ pub struct AgentManifest {
 }
 
 impl AgentManifest {
-    /// Validates whether the agent matches tuquet.agent.v1 protocol specifications
+    /// Validates whether the agent matches specter.agent.v1 protocol specifications
     pub fn is_compatible(&self) -> bool {
-        self.protocol.starts_with("tuquet.agent.")
+        self.protocol.starts_with("specter.agent.")
     }
 }
 
 use std::collections::HashMap;
 
-/// Capability manifest returned by Tuquet CLI browser automation plugin
+/// Capability manifest returned by Specter CLI browser automation plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutomaManifest {
     pub protocol: String,
@@ -55,13 +55,13 @@ pub struct AutomaManifest {
 }
 
 impl AutomaManifest {
-    /// Validates whether the plugin matches tuquet.automa.v1 protocol specifications
+    /// Validates whether the plugin matches specter.automa.v1 protocol specifications
     pub fn is_compatible(&self) -> bool {
-        self.protocol.starts_with("tuquet.automa.")
+        self.protocol.starts_with("specter.automa.")
     }
 }
 
-/// Capability manifest returned by Tuquet CLI browser antidetect engine
+/// Capability manifest returned by Specter CLI browser antidetect engine
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrowserManifest {
     pub protocol: String,
@@ -82,9 +82,9 @@ pub struct BrowserManifest {
 }
 
 impl BrowserManifest {
-    /// Validates whether the browser engine matches tuquet.browser.v1 protocol specifications
+    /// Validates whether the browser engine matches specter.browser.v1 protocol specifications
     pub fn is_compatible(&self) -> bool {
-        self.protocol.starts_with("tuquet.browser.")
+        self.protocol.starts_with("specter.browser.")
     }
 }
 

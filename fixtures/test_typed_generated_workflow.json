@@ -102,7 +102,7 @@
     ]
   },
   "variables": {
-    "keyword": "tuquet_typed_nodes"
+    "keyword": "specter_typed_nodes"
   },
   "settings": {
     "debugMode": false

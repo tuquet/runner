@@ -238,7 +238,7 @@ pub struct FingerprintConfig {
     pub accept_lang: Option<String>,
 }
 
-/// Proxy network routing options for Tuquet Bridge & Chromium
+/// Proxy network routing options for Specter Bridge & Chromium
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyConfig {
     /// Proxy server address (e.g. "socks5://127.0.0.1:1080" or "http://127.0.0.1:8118")
@@ -461,7 +461,7 @@ pub struct AutomaJobPayload {
     /// Enable debug mode for verbose step-by-step logs
     #[serde(default, alias = "debugMode")]
     pub debug: Option<bool>,
-    /// Target execution CLI binary name ("tuquet", "automa", "automa-core")
+    /// Target execution CLI binary name ("specter", "automa", "automa-core")
     #[serde(default)]
     pub target: Option<String>,
     /// Timeout in milliseconds (if overriding job-level timeout)
@@ -548,7 +548,7 @@ impl AutomaJobPayload {
         cfg
     }
 
-    /// Converts this payload into CLI arguments for `tuquet automa run`
+    /// Converts this payload into CLI arguments for `specter automa run`
     pub fn build_cli_args(&self) -> Vec<String> {
         let mut args = vec!["run".to_string()];
         let wf_cfg = self.resolved_workflow_config();
@@ -640,7 +640,7 @@ pub struct BrowserJobPayload {
     /// Initial URL to navigate upon launch (if action is Launch)
     #[serde(default)]
     pub url: Option<String>,
-    /// Target CLI executable ("tuquet", "tuquet-browser", "browser")
+    /// Target CLI executable ("specter", "browser")
     #[serde(default)]
     pub target: Option<String>,
 }
@@ -725,7 +725,7 @@ mod tests {
                 }
             },
             "variables": {
-                "keyword": "tuquet_runner"
+                "keyword": "specter_runner"
             }
         });
 
@@ -898,7 +898,7 @@ mod tests {
                 "path": "./workflows/data_miner.json",
                 "variables": {
                     "depth": 3,
-                    "target": "https://api.tuquet.dev"
+                    "target": "https://api.specter.dev"
                 }
             },
             "browser": "chromium"
@@ -911,14 +911,14 @@ mod tests {
         assert_eq!(wf_cfg.path, "./workflows/data_miner.json");
         let vars = wf_cfg.variables.unwrap();
         assert_eq!(vars.get("depth").and_then(|v| v.as_i64()), Some(3));
-        assert_eq!(vars.get("target").and_then(|v| v.as_str()), Some("https://api.tuquet.dev"));
+        assert_eq!(vars.get("target").and_then(|v| v.as_str()), Some("https://api.specter.dev"));
 
         let args = payload.build_cli_args();
         assert!(args.contains(&"--workflow".to_string()));
         assert!(args.contains(&"./workflows/data_miner.json".to_string()));
         assert!(args.contains(&"-p".to_string()));
         assert!(args.contains(&"depth=3".to_string()));
-        assert!(args.contains(&"target=https://api.tuquet.dev".to_string()));
+        assert!(args.contains(&"target=https://api.specter.dev".to_string()));
     }
 
     #[test]

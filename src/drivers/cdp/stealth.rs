@@ -46,7 +46,7 @@ impl StealthEngine {
                 "Page.createIsolatedWorld",
                 json!({
                     "frameId": frame_id,
-                    "worldName": "tuquet_stealth_context",
+                    "worldName": "specter_stealth_context",
                     "grantUniveralAccess": true
                 }),
             )

@@ -79,7 +79,7 @@ const workflow = defineWorkflow({
     },
   ],
   variables: {
-    keyword: 'tuquet_typed_nodes',
+    keyword: 'specter_typed_nodes',
   },
 });
 

@@ -128,7 +128,7 @@ impl ExecutionDriver for AgentDriver {
                 );
                 // Fallback manifest for compatibility
                 AgentManifest {
-                    protocol: "tuquet.agent.legacy".to_string(),
+                    protocol: "specter.agent.legacy".to_string(),
                     name: target.to_string(),
                     version: "unknown".to_string(),
                     engine: "claude-code".to_string(),

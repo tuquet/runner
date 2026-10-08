@@ -243,7 +243,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_devtools_active_port() {
-        let temp_dir = std::env::temp_dir().join(format!("tuquet_test_profile_{}", uuid::Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("specter_test_profile_{}", uuid::Uuid::new_v4()));
         tokio::fs::create_dir_all(&temp_dir).await.unwrap();
 
         let active_port_file = temp_dir.join("DevToolsActivePort");

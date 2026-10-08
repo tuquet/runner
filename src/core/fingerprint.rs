@@ -113,7 +113,7 @@ impl FingerprintEngine {
         if let Ok(output) = cmd.output() {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                return stdout.contains("tuquet.agent.v1");
+                return stdout.contains("specter.agent.v1");
             }
         }
 
@@ -121,7 +121,7 @@ impl FingerprintEngine {
         if let Ok(output) = Command::new("claude-agy").arg("probe").output() {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                return stdout.contains("tuquet.agent.v1");
+                return stdout.contains("specter.agent.v1");
             }
         }
 
@@ -129,16 +129,12 @@ impl FingerprintEngine {
     }
 
     fn probe_automa() -> bool {
-        // 1. Primary: check 'specter' (or legacy 'tuquet') unified CLI binary
-        for bin in &[
-            if cfg!(windows) { "specter.exe" } else { "specter" },
-            if cfg!(windows) { "tuquet.exe" } else { "tuquet" },
-        ] {
-            if let Ok(output) = Command::new(bin).arg("automa").arg("probe").output() {
-                if output.status.success() {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    return stdout.contains("tuquet.automa.v1") || stdout.contains("specter.automa.v1");
-                }
+        // 1. Primary: check 'specter' unified CLI binary
+        let bin = if cfg!(windows) { "specter.exe" } else { "specter" };
+        if let Ok(output) = Command::new(bin).arg("automa").arg("probe").output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                return stdout.contains("specter.automa.v1");
             }
         }
 
@@ -150,7 +146,7 @@ impl FingerprintEngine {
         if let Ok(output) = cmd.output() {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                return stdout.contains("tuquet.automa.v1");
+                return stdout.contains("specter.automa.v1");
             }
         }
 
@@ -159,7 +155,7 @@ impl FingerprintEngine {
         if let Ok(output) = Command::new(core_name).arg("probe").output() {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                return stdout.contains("tuquet.automa.v1");
+                return stdout.contains("specter.automa.v1");
             }
         }
 

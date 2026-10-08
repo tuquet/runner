@@ -54,7 +54,7 @@ impl EnrollmentClient {
         Self { http_client }
     }
 
-    /// Enroll this machine with Tuquet Cloud via Supabase RPC runners.enroll_device
+    /// Enroll this machine with Specter Cloud via Supabase RPC runners.enroll_device
     pub async fn enroll(
         &self,
         cloud_url: &str,
@@ -125,7 +125,7 @@ impl EnrollmentClient {
         Ok(identity)
     }
 
-    /// Send heartbeat to Tuquet Cloud. Returns Ok(true) if active, Ok(false) if revoked/deleted, or Err.
+    /// Send heartbeat to Specter Cloud. Returns Ok(true) if active, Ok(false) if revoked/deleted, or Err.
     pub async fn heartbeat(
         &self,
         cloud_url: &str,
