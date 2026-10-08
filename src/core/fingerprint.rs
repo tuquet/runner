@@ -128,6 +128,7 @@ impl FingerprintEngine {
         false
     }
 
+    fn probe_automa() -> bool {
         // 1. Primary: check 'specter' (or legacy 'tuquet') unified CLI binary
         for bin in &[
             if cfg!(windows) { "specter.exe" } else { "specter" },
