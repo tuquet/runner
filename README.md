@@ -1,16 +1,17 @@
 <div align="center">
   <img src="https://tuquet.github.io/icons/runner.svg" width="80" height="80" alt="Runner Logo" />
-  <h1>Tuquet Universal Runner (`tuquet-runner`)</h1>
+  <h1>Specter Runner (`specter runner`)</h1>
   <p><strong>Kernel-Level Process Tree Supervisor &amp; Distributed Edge Worker Engine in Rust</strong></p>
 
   <p>
-    <a href="https://github.com/tuquet/scoop-bucket"><img src="https://img.shields.io/badge/Scoop-tuquet-brightgreen.svg" alt="Scoop Bucket" /></a>
+    <a href="https://github.com/tuquet/scoop-bucket"><img src="https://img.shields.io/badge/Scoop-specter-brightgreen.svg" alt="Scoop Bucket" /></a>
+    <a href="https://tuquet.github.io/docs/automation/runner"><img src="https://img.shields.io/badge/Docs-VitePress%20Portal-blue.svg" alt="Documentation" /></a>
     <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Tokio%2FWin32-orange.svg" alt="Rust" /></a>
     <img src="https://img.shields.io/badge/Supervisor-Win32%20Job%20Object-blue.svg" alt="Win32 Job Object" />
-    <a href="https://github.com/tuquet/skills/blob/main/skills/tuquet-runner/SKILL.md"><img src="https://img.shields.io/badge/Skill-%2Ftuquet--runner-purple.svg" alt="Tuquet Runner Skill" /></a>
+    <a href="https://github.com/tuquet/skills/blob/main/skills/specter-runner/SKILL.md"><img src="https://img.shields.io/badge/Skill-%2Fspecter--runner-purple.svg" alt="Specter Runner Skill" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" /></a>
   </p>
-  <p><strong><a href="https://github.com/tuquet/skills/blob/main/skills/tuquet-runner/SKILL.md">⚡ Operational Skill Reference (`/tuquet-runner`) &rarr;</a></strong></p>
+  <p><strong><a href="https://tuquet.github.io/docs/automation/runner">📖 Read Full Documentation in Portal &rarr;</a> • <a href="https://github.com/tuquet/skills/blob/main/skills/specter-runner/SKILL.md">⚡ Operational Skill Reference (`/specter-runner`) &rarr;</a></strong></p>
 </div>
 
 ---
@@ -19,9 +20,9 @@
 
 Traditional workflow runners (written in Python, Node.js, or Electron) suffer from a critical flaw: when the parent supervisor crashes or times out, child processes (such as headless Chromium instances, shell workers, or background daemons) become **orphaned "zombie" processes**, consuming gigabytes of system memory and locking open file handles.
 
-**Tuquet Universal Runner** solves this at the operating system kernel level through native Win32 Job Object process trees:
+**Specter Runner** solves this at the operating system kernel level through native Win32 Job Object process trees:
 
-| Strategic Pillar | The Traditional Problem | The Tuquet Runner Solution | Measurable Business ROI |
+| Strategic Pillar | The Traditional Problem | The Specter Runner Solution | Measurable Business ROI |
 | :--- | :--- | :--- | :--- |
 | **Zombie Child Processes** | Unhandled supervisor exit leaves headless browser and worker processes lingering in RAM. | **Win32 Job Object Supervision** binds all child processes to the kernel job lifecycle; closing the job atomically kills every child. | **Zero-Zombie Guarantee**; 100% clean process termination in <0.1ms upon worker exit. |
 | **Memory Exhaustion** | Electron and Node daemons consume 300MB–800MB RAM merely sitting idle in the background. | **Ultra-Lightweight Rust Core** compiled directly to native machine code with zero runtime garbage collector. | **< 10MB RAM Idle Footprint**; allows maximum worker density on low-spec hardware. |
@@ -62,7 +63,7 @@ flowchart TD
 
 ## 📜 Universal Contract Schema: Automa & Browser Convergence
 
-`tuquet-runner` standardizes job execution payloads across ecosystem pillars, seamlessly uniting **Automa** (workflow DAG execution) with **Browser** (Antidetect Chromium, deterministic PRNG fingerprint spoofing, proxy routing, and profile sandboxing):
+**Specter Runner** standardizes job execution payloads across ecosystem pillars, seamlessly uniting **Automa** (workflow DAG execution) with **Browser** (Antidetect Chromium, deterministic PRNG fingerprint spoofing, proxy routing, and profile sandboxing):
 
 ### 1. Automa Workflow Execution with Dedicated Browser Config (`driver: "automa"`)
 
@@ -197,18 +198,16 @@ specter runner stop
 
 ## 🚀 Installation & Distribution
 
-### 1. Standalone Installation via Scoop (Recommended)
-Tuquet Universal Runner is distributed as an independent, zero-dependency package in the official Scoop bucket:
+### 1. Via Scoop Package Manager (Recommended for Windows Devs)
+Specter Runner is available directly via the unified master CLI (`specter runner`) or as a standalone package:
 
 ```console
 # Register the Tuquet Scoop Bucket
 scoop bucket add tuquet https://github.com/tuquet/scoop-bucket
 
-# Install standalone Tuquet Runner
-scoop install tuquet-runner
+# Install Unified CLI (includes runner)
+scoop install specter
 ```
-
-> 💡 **All-in-One CLI Alternative**: Installing the unified master CLI (`scoop install specter`) also includes full runner orchestration capabilities via `specter runner`.
 
 ### 2. Build Standalone Binary from Source (Cargo)
 ```console
@@ -217,6 +216,14 @@ cd runner
 cargo build --release
 # Executable generated at: target/release/runner.exe
 ```
+
+---
+
+## 📖 Comprehensive Documentation
+
+For complete architectural guides, job lifecycle state machine specifications, and integration examples, visit the official **Specter Documentation Portal**:
+
+👉 **[https://tuquet.github.io/docs/automation/runner](https://tuquet.github.io/docs/automation/runner)**
 
 ---
 
