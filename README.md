@@ -154,7 +154,7 @@ flowchart TD
 
 ## ⚡ Operational Control & Daemon Supervision
 
-All worker daemon lifecycle commands, background supervisor execution, and health monitoring can be operated through the standalone binary (`tuquet-runner`) or the Master CLI (`tuquet runner`), and automated via **[Tuquet Skills](https://github.com/tuquet/skills)**:
+All worker daemon lifecycle commands, background supervisor execution, and health monitoring can be operated through the standalone binary (`tuquet-runner`) or the Master CLI (`specter runner`), and automated via **[Tuquet Skills](https://github.com/tuquet/skills)**:
 
 ### 1. Running Background Supervisor Daemon (`-d`)
 Launch the runner as a detached supervisor daemon. It establishes the Win32 Job Object tree, initializes the local HTTP control bridge on port 8765, and awaits cloud tasks:
@@ -164,7 +164,7 @@ Launch the runner as a detached supervisor daemon. It establishes the Win32 Job 
 tuquet-runner -d
 
 # Or launch via the unified Master CLI
-tuquet runner start -d
+specter runner start -d
 ```
 
 ### 2. Health Monitoring on Port 8765
@@ -172,7 +172,7 @@ The supervisor daemon exposes a local REST health check endpoint on port 8765 (`
 
 ```powershell
 # Inspect worker daemon health route via Master CLI
-tuquet runner status
+specter runner status
 
 # Or check directly via HTTP GET (returns HTTP 200 OK + JSON status)
 curl http://127.0.0.1:8765/api/v1/health
@@ -184,14 +184,14 @@ Invoke-RestMethod http://127.0.0.1:8765/api/v1/health
 ### 3. Log Streaming & Graceful Lifecycle Control
 ```powershell
 # Stream real-time worker logs
-tuquet runner logs -f
+specter runner logs -f
 
 # Gracefully terminate daemon and atomically clean up child process tree
-tuquet runner stop
+specter runner stop
 ```
 
 > 💡 **AI Agent Quick Execution**: In Antigravity, Claude Code, or Cursor, invoke:  
-> **`/tuquet-runner [status|start|stop|restart|logs]`**
+> **`/specter-runner [status|start|stop|restart|logs]`**
 
 ---
 
@@ -208,7 +208,7 @@ scoop bucket add tuquet https://github.com/tuquet/scoop-bucket
 scoop install tuquet-runner
 ```
 
-> 💡 **All-in-One CLI Alternative**: Installing the unified master CLI (`scoop install tuquet`) also includes full runner orchestration capabilities via `tuquet runner`.
+> 💡 **All-in-One CLI Alternative**: Installing the unified master CLI (`scoop install specter`) also includes full runner orchestration capabilities via `specter runner`.
 
 ### 2. Build Standalone Binary from Source (Cargo)
 ```console

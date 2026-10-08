@@ -25,8 +25,8 @@ impl BrowserDriver {
 
     /// Resolves the executable path for the browser manager (tuquet, tuquet-browser, browser)
     fn resolve_browser_bin(&self, target: &str) -> String {
-        let binary_name = if target.is_empty() || target == "tuquet" || target == "tuquet-cli" || target == "browser" || target == "tuquet-browser" {
-            let primary = if cfg!(windows) { "tuquet.exe" } else { "tuquet" };
+        let binary_name = if target.is_empty() || target == "specter" || target == "tuquet" || target == "tuquet-cli" || target == "browser" || target == "tuquet-browser" {
+            let primary = if cfg!(windows) { "specter.exe" } else { "specter" };
             let fallback = if cfg!(windows) { "tuquet-browser.exe" } else { "tuquet-browser" };
             if target == "browser" || target == "tuquet-browser" {
                 fallback
@@ -63,7 +63,7 @@ impl BrowserDriver {
     /// Performs active capability discovery probe with tuquet browser subsystem
     pub async fn probe(&self, bin_name: &str) -> Result<BrowserManifest, String> {
         let mut cmd = Command::new(bin_name);
-        if bin_name.contains("tuquet") && !bin_name.contains("tuquet-browser") {
+        if (bin_name.contains("specter") || bin_name.contains("tuquet")) && !bin_name.contains("tuquet-browser") {
             cmd.arg("browser").arg("status");
         } else {
             cmd.arg("status");
@@ -133,8 +133,8 @@ impl ExecutionDriver for BrowserDriver {
 
         // 3. Assemble execution command
         let mut cmd = Command::new(&bin_name);
-        let is_tuquet_master = bin_name.contains("tuquet") && !bin_name.contains("tuquet-browser");
-        if is_tuquet_master {
+        let is_master = bin_name.contains("specter") || (bin_name.contains("tuquet") && !bin_name.contains("tuquet-browser"));
+        if is_master {
             cmd.arg("browser");
         }
 

@@ -24,8 +24,8 @@ impl AutomaDriver {
 
     /// Resolves the executable path for the automa browser plugin (tuquet, tuquet-cli, automa, automa-core)
     fn resolve_automa_bin(&self, target: &str) -> String {
-        let binary_name = if target.is_empty() || target == "tuquet" || target == "tuquet-cli" || target == "automa" || target == "automa-core" {
-            let primary = if cfg!(windows) { "tuquet.exe" } else { "tuquet" };
+        let binary_name = if target.is_empty() || target == "specter" || target == "tuquet" || target == "tuquet-cli" || target == "automa" || target == "automa-core" {
+            let primary = if cfg!(windows) { "specter.exe" } else { "specter" };
             let fallback = if cfg!(windows) { "automa.exe" } else { "automa" };
             if target == "automa" || target == "automa-core" {
                 fallback
@@ -62,7 +62,7 @@ impl AutomaDriver {
     /// Performs an active capability negotiation and handshake probe with automa-core plugin
     pub async fn probe(&self, bin_name: &str) -> Result<AutomaManifest, String> {
         let mut cmd = Command::new(bin_name);
-        if bin_name.contains("tuquet") {
+        if bin_name.contains("specter") || bin_name.contains("tuquet") {
             cmd.arg("automa").arg("probe");
         } else {
             cmd.arg("probe");
@@ -154,7 +154,7 @@ impl ExecutionDriver for AutomaDriver {
 
         // 3. Assemble execution command using typed AutomaJobPayload & resolved BrowserConfig
         let mut cmd = Command::new(&bin_name);
-        if bin_name.contains("tuquet") {
+        if bin_name.contains("specter") || bin_name.contains("tuquet") {
             cmd.arg("automa");
         }
 
