@@ -5,13 +5,13 @@
 
   <p>
     <a href="https://github.com/tuquet/scoop-bucket"><img src="https://img.shields.io/badge/Scoop-specter-brightgreen.svg" alt="Scoop Bucket" /></a>
-    <a href="https://tuquet.github.io/docs/automation/runner"><img src="https://img.shields.io/badge/Docs-VitePress%20Portal-blue.svg" alt="Documentation" /></a>
+    <a href="https://tuquet.github.io/docs/runner/"><img src="https://img.shields.io/badge/Docs-VitePress%20Portal-blue.svg" alt="Documentation" /></a>
     <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Tokio%2FWin32-orange.svg" alt="Rust" /></a>
     <img src="https://img.shields.io/badge/Supervisor-Win32%20Job%20Object-blue.svg" alt="Win32 Job Object" />
     <a href="https://github.com/tuquet/skills/blob/main/skills/specter-runner/SKILL.md"><img src="https://img.shields.io/badge/Skill-%2Fspecter--runner-purple.svg" alt="Specter Runner Skill" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" /></a>
   </p>
-  <p><strong><a href="https://tuquet.github.io/docs/automation/runner">📖 Read Full Documentation in Portal &rarr;</a> • <a href="https://github.com/tuquet/skills/blob/main/skills/specter-runner/SKILL.md">⚡ Operational Skill Reference (`/specter-runner`) &rarr;</a></strong></p>
+  <p><strong><a href="https://tuquet.github.io/docs/runner/">📖 Read Full Documentation in Portal &rarr;</a> • <a href="https://github.com/tuquet/skills/blob/main/skills/specter-runner/SKILL.md">⚡ Operational Skill Reference (`/specter-runner`) &rarr;</a></strong></p>
 </div>
 
 ---
@@ -223,7 +223,7 @@ cargo build --release
 
 For complete architectural guides, job lifecycle state machine specifications, and integration examples, visit the official **Specter Documentation Portal**:
 
-👉 **[https://tuquet.github.io/docs/automation/runner](https://tuquet.github.io/docs/automation/runner)**
+👉 **[https://tuquet.github.io/docs/runner/](https://tuquet.github.io/docs/runner/)**
 
 ---
 
