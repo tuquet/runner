@@ -6,7 +6,7 @@ runner:
   id: "workstation-alpha-01"
 
   # Server endpoint of Web Control Plane
-  server: "wss://hub.tuquet.dev/api/v1/runner/ws"
+  server: "wss://hub.specter.dev/api/v1/runner/ws"
 
   # Authentication token provided by Web Control Plane
   token: "runner_sec_example_token_98765"
