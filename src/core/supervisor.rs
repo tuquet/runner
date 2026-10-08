@@ -53,6 +53,11 @@ impl ProcessSupervisor {
 
     /// Fallback method to terminate a process tree by PID when AsyncGroupChild is not available
     pub async fn terminate_by_pid(pid: u32) {
+        if pid <= 1 {
+            warn!("Refusing to terminate dangerous PID {} (system/supervisor protection)", pid);
+            return;
+        }
+
         debug!("Fallback terminating process tree by PID {}", pid);
         #[cfg(windows)]
         {
@@ -209,5 +214,12 @@ mod tests {
         assert!(supervisor.pid().is_some());
 
         supervisor.terminate_tree(&mut child).await;
+    }
+
+    #[tokio::test]
+    async fn test_terminate_by_pid_dangerous_pids_ignored() {
+        // PID 0 and 1 must safely return without terminating self or init
+        ProcessSupervisor::terminate_by_pid(0).await;
+        ProcessSupervisor::terminate_by_pid(1).await;
     }
 }
