@@ -128,7 +128,7 @@ impl ExecutionDriver for AgentDriver {
                 );
                 // Fallback manifest for compatibility
                 AgentManifest {
-                    protocol: "specter.agent.legacy".to_string(),
+                    protocol: crate::constants::PROTOCOL_AGENT_LEGACY.to_string(),
                     name: target.to_string(),
                     version: "unknown".to_string(),
                     engine: "claude-code".to_string(),

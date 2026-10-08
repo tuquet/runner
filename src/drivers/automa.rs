@@ -139,7 +139,7 @@ impl ExecutionDriver for AutomaDriver {
                     &format!("Probe notice: {}. Proceeding with standard execution.", e),
                 );
                 AutomaManifest {
-                    protocol: "specter.automa.legacy".to_string(),
+                    protocol: crate::constants::PROTOCOL_AUTOMA_LEGACY.to_string(),
                     name: target.to_string(),
                     version: "unknown".to_string(),
                     engine: "chromium-cdp".to_string(),

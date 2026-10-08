@@ -138,13 +138,13 @@ fn get_config_dir() -> PathBuf {
     if local.exists() {
         return local;
     }
-    if let Ok(dir) = std::env::var("SPECTER_HOME") {
+    if let Ok(dir) = std::env::var(runner::constants::ENV_SPECTER_HOME) {
         if !dir.trim().is_empty() {
             return PathBuf::from(dir).join("config");
         }
     }
     if let Ok(user_home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-        return PathBuf::from(user_home).join(".specter").join("config");
+        return PathBuf::from(user_home).join(runner::constants::DEFAULT_SSOT_DIR_NAME).join("config");
     }
     PathBuf::from("config")
 }
@@ -277,7 +277,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!(" Device ID:     {}", identity.device_id);
                     println!(" Tenant ID:     {}", identity.tenant_id);
                     println!(" Device Name:   {}", identity.name);
-                    println!(" Identity Path: {}", config_dir.join(".identity.json").display());
+                    println!(" Identity Path: {}", config_dir.join(runner::constants::FILE_IDENTITY_JSON).display());
                     println!("\n👉 Run 'runner worker' to start processing cloud jobs.");
                 }
                 Err(e) => {
@@ -354,7 +354,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             println!(" Environment:   {}", identity.env.to_uppercase());
                             println!(" Device ID:     {}", identity.device_id);
                             println!(" Cloud URL:     {}", identity.cloud_url);
-                            println!(" Identity Path: {}", config_dir.join(".identity.json").display());
+                            println!(" Identity Path: {}", config_dir.join(runner::constants::FILE_IDENTITY_JSON).display());
                             println!("\n👉 Run 'runner worker' to start processing jobs on this environment.");
                         }
                         Err(e) => {
@@ -414,7 +414,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     format!("{}/api/v1/runner/ws", ws_base)
                 }))
-                .unwrap_or_else(|| "wss://hub.specter.dev/api/v1/runner/ws".to_string());
+                .unwrap_or_else(|| runner::constants::DEFAULT_WEBSOCKET_HUB.to_string());
 
             println!("============================================================");
             println!(" Starting Runner in Worker Daemon Mode");
@@ -503,7 +503,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Purge => {
             match DeviceIdentity::purge(&config_dir) {
                 Ok(_) => {
-                    println!("\x1b[32m[SUCCESS] Local device identity purged from {}\x1b[0m", config_dir.join(".identity.json").display());
+                    println!("\x1b[32m[SUCCESS] Local device identity purged from {}\x1b[0m", config_dir.join(runner::constants::FILE_IDENTITY_JSON).display());
                     println!("Workstation is now in a clean, unenrolled state. Run 'runner env switch <dev|local>' to re-register.");
                 }
                 Err(e) => {

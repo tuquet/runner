@@ -28,7 +28,7 @@ pub struct AgentManifest {
 impl AgentManifest {
     /// Validates whether the agent matches specter.agent.v1 protocol specifications
     pub fn is_compatible(&self) -> bool {
-        self.protocol.starts_with("specter.agent.")
+        self.protocol.starts_with(crate::constants::PROTOCOL_PREFIX_AGENT)
     }
 }
 
@@ -57,7 +57,7 @@ pub struct AutomaManifest {
 impl AutomaManifest {
     /// Validates whether the plugin matches specter.automa.v1 protocol specifications
     pub fn is_compatible(&self) -> bool {
-        self.protocol.starts_with("specter.automa.")
+        self.protocol.starts_with(crate::constants::PROTOCOL_PREFIX_AUTOMA)
     }
 }
 
@@ -84,7 +84,7 @@ pub struct BrowserManifest {
 impl BrowserManifest {
     /// Validates whether the browser engine matches specter.browser.v1 protocol specifications
     pub fn is_compatible(&self) -> bool {
-        self.protocol.starts_with("specter.browser.")
+        self.protocol.starts_with(crate::constants::PROTOCOL_PREFIX_BROWSER)
     }
 }
 

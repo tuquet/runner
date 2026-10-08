@@ -82,7 +82,7 @@ impl BrowserDriver {
         channels.insert("lts".to_string(), "148.0.7778.215".to_string());
 
         let manifest = BrowserManifest {
-            protocol: "specter.browser.v1".to_string(),
+            protocol: crate::constants::PROTOCOL_BROWSER_V1.to_string(),
             name: "antidetect-chromium".to_string(),
             version: "148.0.7778.215".to_string(),
             engine: "adryfish/fingerprint-chromium".to_string(),

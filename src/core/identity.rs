@@ -21,7 +21,7 @@ pub struct DeviceIdentity {
 }
 
 impl DeviceIdentity {
-    const IDENTITY_FILENAME: &'static str = ".identity.json";
+    const IDENTITY_FILENAME: &'static str = crate::constants::FILE_IDENTITY_JSON;
 
     /// Check if a valid identity exists locally
     pub fn is_enrolled(config_dir: &Path) -> bool {

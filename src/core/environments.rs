@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-pub const DEFAULT_LOCAL_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-pub const DEFAULT_DEV_URL: &str = "https://dswhacsoaxgpfnkaxnhz.supabase.co";
-pub const DEFAULT_DEV_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzd2hhY3NvYXhncGZua2F4bmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyOTEzMzcsImV4cCI6MjEwNTg2NzMzN30.QRdxE3CPCF8CtliOtSUcSFO-jbKi99uM2AKlJgKt6RQ";
+pub use crate::constants::{DEFAULT_DEV_ANON_KEY, DEFAULT_DEV_SUPABASE_URL as DEFAULT_DEV_URL, DEFAULT_LOCAL_ANON_KEY};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvironmentConfig {
@@ -18,7 +16,7 @@ pub struct EnvironmentConfig {
 pub struct EnvironmentRegistry;
 
 impl EnvironmentRegistry {
-    const ENV_FILENAME: &'static str = "environments.json";
+    const ENV_FILENAME: &'static str = crate::constants::FILE_ENVIRONMENTS_JSON;
 
     /// Get default built-in environments
     pub fn default_environments() -> HashMap<String, EnvironmentConfig> {
@@ -27,8 +25,8 @@ impl EnvironmentRegistry {
             "local".to_string(),
             EnvironmentConfig {
                 name: "local".to_string(),
-                label: "Local Docker Supabase (127.0.0.1:54321)".to_string(),
-                url: "http://127.0.0.1:54321".to_string(),
+                label: format!("Local Docker Supabase (127.0.0.1:{})", crate::constants::DEFAULT_LOCAL_DOCKER_SUPABASE_PORT),
+                url: crate::constants::DEFAULT_LOCAL_SUPABASE_URL.to_string(),
                 api_key: Some(DEFAULT_LOCAL_ANON_KEY.to_string()),
             },
         );
