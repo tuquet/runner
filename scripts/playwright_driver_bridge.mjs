@@ -40,7 +40,7 @@ async function main() {
     browser = await chromium.connectOverCDP(cdpUrl);
   } catch (err) {
     console.error(`❌ Failed to connect to CDP at ${cdpUrl}:`, err.message);
-    console.error('\nEnsure the browser is running via:\n  tuquet launch [profile] --port', port, '--detach\n');
+    console.error('\nEnsure the browser is running via:\n  specter browser launch [profile] --port', port, '--detach\n');
     process.exit(1);
   }
 
