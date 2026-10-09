@@ -1,14 +1,13 @@
 use crate::core::supervisor::{AsyncCommandGroup, ProcessSupervisor};
 use crate::drivers::{ExecutionContext, ExecutionDriver};
 use crate::protocol::handshake::BrowserManifest;
-use crate::protocol::schema::{BrowserAction, BrowserJobOutput, BrowserJobPayload, Job, JobId, JobResult, LogChannel};
+use crate::protocol::schema::{BrowserAction, BrowserJobOutput, BrowserJobPayload, Job, JobResult, LogChannel};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tracing::info;
 
 pub struct BrowserDriver;
 
@@ -42,14 +41,27 @@ impl BrowserDriver {
         }
 
         let home_dir = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default();
-        let candidates = [
-            format!("/usr/local/bin/{}", binary_name),
+        let mut candidates = vec![
             format!("{}/.specter/bin/{}", home_dir, binary_name),
-            format!("{}/Repository/tuquet/cli/target/release/{}", home_dir, binary_name),
-            format!("{}/Repository/tuquet/cli/target/debug/{}", home_dir, binary_name),
+            format!("/usr/local/bin/{}", binary_name),
+            format!("target/release/{}", binary_name),
+            format!("target/debug/{}", binary_name),
+            format!("../target/release/{}", binary_name),
+            format!("../target/debug/{}", binary_name),
             format!("../cli/target/release/{}", binary_name),
             format!("../cli/target/debug/{}", binary_name),
         ];
+
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                candidates.insert(0, exe_dir.join(binary_name).to_string_lossy().to_string());
+            }
+        }
+
+        if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+            candidates.push(format!("{}/release/{}", target_dir, binary_name));
+            candidates.push(format!("{}/debug/{}", target_dir, binary_name));
+        }
 
         for cand in candidates {
             if std::path::Path::new(&cand).exists() {
@@ -284,11 +296,6 @@ impl ExecutionDriver for BrowserDriver {
                 Ok(JobResult::failure(job.id, None, duration_ms, err_msg))
             }
         }
-    }
-
-    async fn cancel(&self, _job_id: &JobId) -> Result<(), String> {
-        info!("Browser driver received cancellation signal. Cleaning up process...");
-        Ok(())
     }
 }
 

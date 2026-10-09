@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_init();
 
     println!("\n=======================================================");
-    println!("  👀 TUQUET LIVE VIEW - VISUAL INSPECTION HARNESS");
+    println!("  👀 SPECTER LIVE VIEW - VISUAL INSPECTION HARNESS");
     println!("=======================================================\n");
 
     let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_default();
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    let temp_profile = std::env::temp_dir().join(format!("tuquet_live_profile_{}", uuid::Uuid::new_v4()));
+    let temp_profile = std::env::temp_dir().join(format!("specter_live_profile_{}", uuid::Uuid::new_v4()));
     tokio::fs::create_dir_all(&temp_profile).await?;
 
     println!("[1/4] Launching C++ Antidetect Chromium v148 in HEADFUL VISUAL MODE...");
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--no-first-run")
         .arg("--no-default-browser-check");
 
-    // Optional Tuquet Bridge Proxy (1080)
+    // Optional Specter Bridge Proxy (1080)
     if std::net::TcpListener::bind("127.0.0.1:1080").is_err() {
         println!("      • Network Route: SOCKS5 Bridge Active (127.0.0.1:1080)");
         cmd.arg("--proxy-server=socks5://127.0.0.1:1080")
@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target_points = [(350.0, 250.0), (700.0, 380.0), (450.0, 520.0), (800.0, 300.0)];
     for (x, y) in target_points {
         let _ = session.evaluate(&format!(
-            "if(window.tuquet_move) window.tuquet_move({}, {})",
+            "if(window.specter_move) window.specter_move({}, {})",
             x, y
         )).await;
         session.click("table").await.ok();
@@ -154,9 +154,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn inject_visual_cursor(s: &CdpSession) {
     let _ = s.evaluate(r#"(() => {
-        if (document.getElementById('tuquet-visual-pointer')) return;
+        if (document.getElementById('specter-visual-pointer')) return;
         const dot = document.createElement('div');
-        dot.id = 'tuquet-visual-pointer';
+        dot.id = 'specter-visual-pointer';
         dot.style.position = 'fixed';
         dot.style.width = '18px';
         dot.style.height = '18px';

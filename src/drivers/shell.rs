@@ -1,6 +1,6 @@
 use crate::core::supervisor::{AsyncCommandGroup, ProcessSupervisor};
 use crate::drivers::{ExecutionContext, ExecutionDriver};
-use crate::protocol::schema::{Job, JobId, JobResult, LogChannel};
+use crate::protocol::schema::{Job, JobResult, LogChannel};
 use async_trait::async_trait;
 use std::process::Stdio;
 use std::time::{Duration, Instant};
@@ -162,9 +162,5 @@ impl ExecutionDriver for ShellDriver {
                 Ok(JobResult::failure(job.id, None, elapsed, e))
             }
         }
-    }
-
-    async fn cancel(&self, _job_id: &JobId) -> Result<(), String> {
-        Ok(())
     }
 }

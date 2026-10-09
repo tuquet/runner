@@ -1,5 +1,5 @@
 use crate::drivers::{ExecutionContext, ExecutionDriver};
-use crate::protocol::schema::{Job, JobId, JobResult, LogChannel};
+use crate::protocol::schema::{Job, JobResult, LogChannel};
 use async_trait::async_trait;
 use reqwest::Client;
 use std::time::{Duration, Instant};
@@ -112,9 +112,5 @@ impl ExecutionDriver for HttpDriver {
                 format!("HTTP error: status {}", status_code),
             ))
         }
-    }
-
-    async fn cancel(&self, _job_id: &JobId) -> Result<(), String> {
-        Ok(())
     }
 }

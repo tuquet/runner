@@ -57,8 +57,11 @@ pub trait ExecutionDriver: Send + Sync {
     /// Executes the job and returns the final JobResult
     async fn execute(&self, job: Job, ctx: ExecutionContext) -> Result<JobResult, String>;
 
-    /// Requests cancellation of a running job
-    async fn cancel(&self, job_id: &JobId) -> Result<(), String>;
+    /// Requests cancellation of a running job.
+    /// By default, drivers rely on cooperative cancellation via `ctx.cancel_token`.
+    async fn cancel(&self, _job_id: &JobId) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 /// Registry holding active drivers
@@ -91,8 +94,8 @@ impl DriverRegistry {
         match &job.driver {
             DriverType::Shell => self.get("shell"),
             DriverType::Agent => self.get("agent"),
-            DriverType::Automa => self.get("automa").or_else(|| self.get("shell")),
-            DriverType::Browser => self.get("browser").or_else(|| self.get("shell")),
+            DriverType::Automa => self.get("automa"),
+            DriverType::Browser => self.get("browser"),
             DriverType::Http => self.get("http"),
             DriverType::Custom(name) => self.get(name),
         }
