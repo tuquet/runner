@@ -4,14 +4,14 @@
   <p><strong>Kernel-Level Process Tree Supervisor & Distributed Edge Worker Engine in Rust</strong></p>
 
   <p>
-    <a href="https://specter.tuquet.com/runner/"><img src="https://img.shields.io/badge/Docs-VitePress%20Hub-blue.svg" alt="Documentation Hub" /></a>
+    <a href="https://docs.tuquet.com/en/specter/runner/"><img src="https://img.shields.io/badge/Docs-VitePress%20Hub-blue.svg" alt="Documentation Hub" /></a>
     <a href="https://github.com/tuquet/scoop-bucket"><img src="https://img.shields.io/badge/Scoop-specter-brightgreen.svg" alt="Scoop" /></a>
     <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Tokio%2FWin32-orange.svg" alt="Rust" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" /></a>
   </p>
 
   <p>
-    <strong><a href="https://specter.tuquet.com/runner/">📖 Đọc toàn bộ tài liệu kỹ thuật tại Documentation Hub &rarr;</a></strong>
+    <strong><a href="https://docs.tuquet.com/en/specter/runner/">📖 Đọc toàn bộ tài liệu kỹ thuật tại Documentation Hub &rarr;</a></strong>
   </p>
 </div>
 
@@ -38,4 +38,4 @@ specter runner status
 
 Toàn bộ đặc tả kiến trúc Win32 Job Object, mô hình kết nối Cloud RPC, lưu trữ định danh `~/.specter/system/` và quy trình kiểm thử được bảo trì duy nhất tại Documentation Hub:
 
-👉 **[https://specter.tuquet.com/runner/](https://specter.tuquet.com/runner/)**
+👉 **[https://docs.tuquet.com/en/specter/runner/](https://docs.tuquet.com/en/specter/runner/)**
