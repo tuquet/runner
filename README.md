@@ -19,10 +19,10 @@
 
 ## 📌 Tổng Quan (Overview)
 
-**Specter Runner** là engine giám sát tiến trình và quản lý worker phân tán được viết bằng Rust thuần túy. Runner giải quyết triệt để vấn đề tiến trình zombie (zombie child processes) khi trình duyệt hoặc worker gặp sự cố bằng cách ràng buộc toàn bộ cây tiến trình con vào Win32 Job Object ở tầng kernel Windows.
+**Specter Runner** là engine giám sát và điều phối tác vụ chạy ngầm được viết bằng Rust thuần túy (native app siêu nhẹ). Runner tự động quản lý vòng đời tiến trình, đảm bảo khi tắt hoặc gặp sự cố thì mọi tiến trình con (trình duyệt, worker) đều được dọn dẹp sạch sẽ tức thì (Zero Zombie), không bao giờ gây đơ máy hay chiếm dụng RAM ngầm.
 
 * **Zero-Zombie Guarantee**: Đóng hoặc crash supervisor sẽ lập tức thu hồi toàn bộ Chromium và worker con trong <0.1ms.
-* **Siêu nhẹ & Hiệu năng cao**: Bộ nhớ chiếm dụng khi rảnh rỗi dưới 10MB RAM, không phụ thuộc vào Node.js hay Electron runtime.
+* **Siêu nhẹ & Hiệu năng cao**: Bộ nhớ chiếm dụng khi rảnh rỗi dưới 10MB RAM, ứng dụng native không phụ thuộc vào Node.js hay Electron runtime.
 
 ## ⚡ Sử Dụng Nhanh (Quickstart)
 
@@ -36,6 +36,6 @@ specter runner status
 
 ## 📚 Tài Liệu Kỹ Thuật Tập Trung (SSOT)
 
-Toàn bộ đặc tả kiến trúc Win32 Job Object, mô hình kết nối Cloud RPC, lưu trữ định danh `~/.specter/system/` và quy trình kiểm thử được bảo trì duy nhất tại Documentation Hub:
+Toàn bộ tài liệu chi tiết, cơ chế dọn dẹp tiến trình tự động, mô hình kết nối Cloud RPC và quy trình kiểm thử được bảo trì duy nhất tại Documentation Hub:
 
 👉 **[https://docs.tuquet.com/en/specter/runner/](https://docs.tuquet.com/en/specter/runner/)**
