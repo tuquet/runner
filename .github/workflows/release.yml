@@ -77,14 +77,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Trigger Scoop Bucket Excavator
-        if: success()
-        run: |
-          echo "Triggering scoop-bucket excavator auto-update..."
-          gh workflow run excavator.yml -R tuquet/scoop-bucket || true
-        env:
-          GH_TOKEN: ${{ secrets.SCOOP_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
-
   notify:
     name: Notify Telegram
     needs: [build-windows]
