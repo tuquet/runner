@@ -66,7 +66,12 @@ pub trait BrowserBackend: Send + Sync {
     async fn capture_screenshot(&self, format: &str) -> Result<String, String>;
     async fn get_cookies(&self, urls: Option<Vec<String>>) -> Result<Value, String>;
     async fn set_cookie(&self, cookie: Value) -> Result<bool, String>;
-    async fn delete_cookies(&self, name: &str, url: Option<&str>, domain: Option<&str>) -> Result<(), String>;
+    async fn delete_cookies(
+        &self,
+        name: &str,
+        url: Option<&str>,
+        domain: Option<&str>,
+    ) -> Result<(), String>;
     async fn evaluate(&self, script: &str) -> Result<Value, String>;
     async fn solve_turnstile(&self, timeout: Duration) -> Result<bool, String>;
 }
@@ -102,7 +107,8 @@ impl BrowserBackend for CdpSession {
         clear: bool,
         direct: bool,
     ) -> Result<(), String> {
-        self.type_text_at_index(selector, index, text, clear, direct).await
+        self.type_text_at_index(selector, index, text, clear, direct)
+            .await
     }
     async fn press_key(&self, key: &str) -> Result<(), String> {
         self.press_key(key).await
@@ -146,7 +152,9 @@ impl BrowserBackend for CdpSession {
             .await
     }
     async fn element_exists(&self, selector: &str, timeout: Duration) -> Result<bool, String> {
-        self.element_engine().element_exists(selector, timeout).await
+        self.element_engine()
+            .element_exists(selector, timeout)
+            .await
     }
     async fn count_elements(&self, selector: &str) -> Result<usize, String> {
         self.element_engine().count_elements(selector).await
@@ -173,7 +181,12 @@ impl BrowserBackend for CdpSession {
     async fn set_cookie(&self, cookie: Value) -> Result<bool, String> {
         self.set_cookie(cookie).await
     }
-    async fn delete_cookies(&self, name: &str, url: Option<&str>, domain: Option<&str>) -> Result<(), String> {
+    async fn delete_cookies(
+        &self,
+        name: &str,
+        url: Option<&str>,
+        domain: Option<&str>,
+    ) -> Result<(), String> {
         self.delete_cookies(name, url, domain).await
     }
     async fn evaluate(&self, script: &str) -> Result<Value, String> {
@@ -287,13 +300,17 @@ impl WorkflowGraph {
 
         let mut connections: HashMap<String, Vec<ConnectionTarget>> = HashMap::new();
         for edge in raw_edges {
-            let handle = edge.source_handle.clone().unwrap_or_else(|| {
-                format!("{}-output-1", edge.source)
-            });
-            connections.entry(handle).or_default().push(ConnectionTarget {
-                target_node_id: edge.target,
-                target_handle: edge.target_handle.unwrap_or_default(),
-            });
+            let handle = edge
+                .source_handle
+                .clone()
+                .unwrap_or_else(|| format!("{}-output-1", edge.source));
+            connections
+                .entry(handle)
+                .or_default()
+                .push(ConnectionTarget {
+                    target_node_id: edge.target,
+                    target_handle: edge.target_handle.unwrap_or_default(),
+                });
         }
 
         let mut global_data = HashMap::new();
@@ -344,7 +361,10 @@ impl ExecutionState {
     pub fn set_variable(&mut self, name: &str, val: Value) {
         if let Some(stripped) = name.strip_prefix("$push:") {
             let var_name = stripped.trim();
-            let entry = self.variables.entry(var_name.to_string()).or_insert_with(|| Value::Array(vec![]));
+            let entry = self
+                .variables
+                .entry(var_name.to_string())
+                .or_insert_with(|| Value::Array(vec![]));
             if let Some(arr) = entry.as_array_mut() {
                 arr.push(val);
             } else {
@@ -391,7 +411,10 @@ impl WorkflowDagExecutor {
             return chrono::Utc::now().format("%Y-%m-%d").to_string();
         }
 
-        if let Some(var_expr) = expr.strip_prefix("variables.").or_else(|| expr.strip_prefix("vars.")) {
+        if let Some(var_expr) = expr
+            .strip_prefix("variables.")
+            .or_else(|| expr.strip_prefix("vars."))
+        {
             if let Some(v) = state.variables.get(var_expr) {
                 return match v {
                     Value::String(s) => s.clone(),
@@ -471,9 +494,15 @@ impl WorkflowDagExecutor {
         match val {
             Value::String(s) => {
                 let trimmed = s.trim();
-                if trimmed.starts_with("{{") && trimmed.ends_with("}}") && !trimmed[2..trimmed.len() - 2].contains("{{") {
+                if trimmed.starts_with("{{")
+                    && trimmed.ends_with("}}")
+                    && !trimmed[2..trimmed.len() - 2].contains("{{")
+                {
                     let expr = trimmed[2..trimmed.len() - 2].trim();
-                    if let Some(var_expr) = expr.strip_prefix("variables.").or_else(|| expr.strip_prefix("vars.")) {
+                    if let Some(var_expr) = expr
+                        .strip_prefix("variables.")
+                        .or_else(|| expr.strip_prefix("vars."))
+                    {
                         if let Some(v) = state.variables.get(var_expr) {
                             return v.clone();
                         }
@@ -484,7 +513,11 @@ impl WorkflowDagExecutor {
                 }
                 Value::String(self.interpolate_string(s, state))
             }
-            Value::Array(arr) => Value::Array(arr.iter().map(|item| self.interpolate_value(item, state)).collect()),
+            Value::Array(arr) => Value::Array(
+                arr.iter()
+                    .map(|item| self.interpolate_value(item, state))
+                    .collect(),
+            ),
             Value::Object(obj) => {
                 let mut out = Map::new();
                 for (k, v) in obj {
@@ -500,7 +533,9 @@ impl WorkflowDagExecutor {
         &'a self,
         initial_state: Option<ExecutionState>,
         cancel_token: CancellationToken,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExecutionState, String>> + Send + 'a>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<ExecutionState, String>> + Send + 'a>,
+    > {
         Box::pin(async move {
             let (state, _) = self
                 .execute_with_io(initial_state, None, HashMap::new(), cancel_token)
@@ -509,13 +544,16 @@ impl WorkflowDagExecutor {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn execute_with_io<'a>(
         &'a self,
         initial_state: Option<ExecutionState>,
         entry_node_id: Option<String>,
         package_outputs: HashMap<String, String>,
         cancel_token: CancellationToken,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(ExecutionState, String), String>> + Send + 'a>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<(ExecutionState, String), String>> + Send + 'a>,
+    > {
         Box::pin(async move {
             let mut state = initial_state.unwrap_or_default();
 
@@ -608,7 +646,9 @@ impl WorkflowDagExecutor {
                                     ));
                                 }
                             } else if branch == "1" {
-                                if let Some(targets) = self.graph.connections.get(&format!("{}-output-1", node.id)) {
+                                if let Some(targets) =
+                                    self.graph.connections.get(&format!("{}-output-1", node.id))
+                                {
                                     for t in targets.iter().rev() {
                                         next_queue.push((
                                             t.target_node_id.clone(),
@@ -624,7 +664,10 @@ impl WorkflowDagExecutor {
                         }
 
                         if self.graph.settings.block_delay > 0 {
-                            tokio::time::sleep(Duration::from_millis(self.graph.settings.block_delay)).await;
+                            tokio::time::sleep(Duration::from_millis(
+                                self.graph.settings.block_delay,
+                            ))
+                            .await;
                         }
                     }
                     Err(err) => {
@@ -649,7 +692,8 @@ impl WorkflowDagExecutor {
                         if let Some(pkg_out_id) = package_outputs.get(&fallback_handle) {
                             matched_package_output = Some(pkg_out_id.clone());
                             if on_error == "fallback" {
-                                if let Some(targets) = self.graph.connections.get(&fallback_handle) {
+                                if let Some(targets) = self.graph.connections.get(&fallback_handle)
+                                {
                                     for t in targets.iter().rev() {
                                         next_queue.push((
                                             t.target_node_id.clone(),
@@ -699,12 +743,18 @@ impl WorkflowDagExecutor {
                             }
                         }
 
-                        return Err(format!("Block '{}' ({}) failed: {}", node.label, node.id, err));
+                        return Err(format!(
+                            "Block '{}' ({}) failed: {}",
+                            node.label, node.id, err
+                        ));
                     }
                 }
             }
 
-            Ok((state, matched_package_output.unwrap_or_else(|| "1".to_string())))
+            Ok((
+                state,
+                matched_package_output.unwrap_or_else(|| "1".to_string()),
+            ))
         })
     }
 
@@ -768,9 +818,15 @@ impl WorkflowDagExecutor {
             }
             "forms" => {
                 let (selector, index) = Self::parse_target_selector(data, state)?;
-                let ftype = data.get("type").and_then(|v| v.as_str()).unwrap_or("text-field");
+                let ftype = data
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("text-field");
                 let text = data.get("value").and_then(|v| v.as_str()).unwrap_or("");
-                let clear_val = data.get("clearValue").and_then(|v| v.as_bool()).unwrap_or(true);
+                let clear_val = data
+                    .get("clearValue")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
                 let delay = data.get("delay").and_then(|v| v.as_u64()).unwrap_or(0);
 
                 if ftype == "text-field" {
@@ -792,7 +848,10 @@ impl WorkflowDagExecutor {
             }
             "element-scroll" => {
                 let (selector, index) = Self::parse_target_selector(data, state)?;
-                let into_view = data.get("scrollIntoView").and_then(|v| v.as_bool()).unwrap_or(true);
+                let into_view = data
+                    .get("scrollIntoView")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
                 let smooth = data.get("smooth").and_then(|v| v.as_bool()).unwrap_or(true);
                 let sx = data.get("scrollX").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let sy = data.get("scrollY").and_then(|v| v.as_f64()).unwrap_or(0.0);
@@ -804,8 +863,14 @@ impl WorkflowDagExecutor {
             }
             "get-text" => {
                 let (selector, index) = Self::parse_target_selector(data, state)?;
-                let multiple = data.get("multiple").and_then(|v| v.as_bool()).unwrap_or(false);
-                let include_tags = data.get("includeTags").and_then(|v| v.as_bool()).unwrap_or(false);
+                let multiple = data
+                    .get("multiple")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let include_tags = data
+                    .get("includeTags")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
 
                 let val = self
                     .backend
@@ -817,8 +882,14 @@ impl WorkflowDagExecutor {
             }
             "attribute-value" => {
                 let (selector, index) = Self::parse_target_selector(data, state)?;
-                let attr = data.get("attributeName").and_then(|v| v.as_str()).unwrap_or("href");
-                let multiple = data.get("multiple").and_then(|v| v.as_bool()).unwrap_or(false);
+                let attr = data
+                    .get("attributeName")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("href");
+                let multiple = data
+                    .get("multiple")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
 
                 let val = self
                     .backend
@@ -831,7 +902,10 @@ impl WorkflowDagExecutor {
             "element-exists" => {
                 let (selector, _) = Self::parse_target_selector(data, state)?;
                 let timeout_ms = data.get("timeout").and_then(|v| v.as_u64()).unwrap_or(3000);
-                let exists = self.backend.element_exists(&selector, Duration::from_millis(timeout_ms)).await?;
+                let exists = self
+                    .backend
+                    .element_exists(&selector, Duration::from_millis(timeout_ms))
+                    .await?;
 
                 let branch = if exists { "1" } else { "fallback" };
                 Ok((Value::Bool(exists), branch.to_string()))
@@ -849,7 +923,10 @@ impl WorkflowDagExecutor {
                 Ok((Value::String(b64), "1".to_string()))
             }
             "cookie" => {
-                let action = data.get("type").and_then(|v| v.as_str()).unwrap_or("get-all");
+                let action = data
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("get-all");
                 match action {
                     "get-all" => {
                         let cookies = self.backend.get_cookies(None).await?;
@@ -872,7 +949,10 @@ impl WorkflowDagExecutor {
             }
             "turnstile" => {
                 let timeout_secs = data.get("timeout").and_then(|v| v.as_u64()).unwrap_or(20);
-                let solved = self.backend.solve_turnstile(Duration::from_secs(timeout_secs)).await?;
+                let solved = self
+                    .backend
+                    .solve_turnstile(Duration::from_secs(timeout_secs))
+                    .await?;
                 let branch = if solved { "1" } else { "fallback" };
                 Ok((Value::Bool(solved), branch.to_string()))
             }
@@ -893,7 +973,10 @@ impl WorkflowDagExecutor {
                 Ok((Value::Null, matched_branch))
             }
             "loop-data" => {
-                let loop_id = data.get("loopId").and_then(|v| v.as_str()).unwrap_or(node_id);
+                let loop_id = data
+                    .get("loopId")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(node_id);
                 if let Some(cur) = state.loop_list.get_mut(loop_id) {
                     cur.index += 1;
                     let cur_idx = cur.index;
@@ -907,19 +990,28 @@ impl WorkflowDagExecutor {
                     );
                     Ok((val, "1".to_string()))
                 } else {
-                    let loop_through = data.get("loopThrough").and_then(|v| v.as_str()).unwrap_or("numbers");
+                    let loop_through = data
+                        .get("loopThrough")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("numbers");
                     let items = match loop_through {
                         "numbers" => {
                             let from = data.get("fromNumber").and_then(|v| v.as_i64()).unwrap_or(1);
                             let to = data.get("toNumber").and_then(|v| v.as_i64()).unwrap_or(5);
-                            (from..=to).map(|n| Value::from(n)).collect()
+                            (from..=to).map(Value::from).collect()
                         }
                         "custom-data" => {
-                            let raw = data.get("loopData").and_then(|v| v.as_str()).unwrap_or("[]");
+                            let raw = data
+                                .get("loopData")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("[]");
                             serde_json::from_str::<Vec<Value>>(raw).unwrap_or_default()
                         }
                         "variable" => {
-                            let vname = data.get("variableName").and_then(|v| v.as_str()).unwrap_or("");
+                            let vname = data
+                                .get("variableName")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
                             state
                                 .variables
                                 .get(vname)
@@ -937,7 +1029,8 @@ impl WorkflowDagExecutor {
                             index: 0,
                             block_id: node_id.to_string(),
                             items,
-                            max_loop: data.get("maxLoop").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                            max_loop: data.get("maxLoop").and_then(|v| v.as_u64()).unwrap_or(0)
+                                as usize,
                         },
                     );
                     state.loop_data.insert(
@@ -951,7 +1044,10 @@ impl WorkflowDagExecutor {
                 }
             }
             "loop-elements" => {
-                let loop_id = data.get("loopId").and_then(|v| v.as_str()).unwrap_or(node_id);
+                let loop_id = data
+                    .get("loopId")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(node_id);
                 if let Some(cur) = state.loop_list.get_mut(loop_id) {
                     cur.index += 1;
                     let cur_idx = cur.index;
@@ -967,8 +1063,13 @@ impl WorkflowDagExecutor {
                 } else {
                     let selector = data.get("selector").and_then(|v| v.as_str()).unwrap_or("");
                     let count = self.backend.count_elements(selector).await.unwrap_or(0);
-                    let max_loop = data.get("maxLoop").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-                    let limit = if max_loop > 0 && max_loop < count { max_loop } else { count };
+                    let max_loop =
+                        data.get("maxLoop").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                    let limit = if max_loop > 0 && max_loop < count {
+                        max_loop
+                    } else {
+                        count
+                    };
 
                     let items: Vec<Value> = (0..limit)
                         .map(|i| Value::String(format!("__specter_el_loop__:{selector}@{i}")))
@@ -996,7 +1097,10 @@ impl WorkflowDagExecutor {
             }
             "loop-breakpoint" => {
                 let loop_id = data.get("loopId").and_then(|v| v.as_str()).unwrap_or("");
-                let clear_loop = data.get("clearLoop").and_then(|v| v.as_bool()).unwrap_or(false);
+                let clear_loop = data
+                    .get("clearLoop")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
 
                 if let Some(cur) = state.loop_list.get(loop_id) {
                     let has_more = cur.index + 1 < cur.items.len()
@@ -1020,9 +1124,15 @@ impl WorkflowDagExecutor {
                     .and_then(|v| v.as_array())
                 {
                     for item in arr {
-                        let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("column");
+                        let name = item
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("column");
                         let val = item.get("value").cloned().unwrap_or(Value::Null);
-                        let itype = item.get("type").and_then(|v| v.as_str()).unwrap_or("column");
+                        let itype = item
+                            .get("type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("column");
                         if itype == "variable" {
                             state.set_variable(name, val);
                         } else {
@@ -1033,9 +1143,16 @@ impl WorkflowDagExecutor {
                 Ok((Value::Null, "1".to_string()))
             }
             "increase-variable" => {
-                let name = data.get("variableName").and_then(|v| v.as_str()).unwrap_or("");
+                let name = data
+                    .get("variableName")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 let amount = data.get("value").and_then(|v| v.as_i64()).unwrap_or(1);
-                let cur = state.variables.get(name).and_then(|v| v.as_i64()).unwrap_or(0);
+                let cur = state
+                    .variables
+                    .get(name)
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
                 let next = cur + amount;
                 state.set_variable(name, Value::from(next));
                 Ok((Value::from(next), "1".to_string()))
@@ -1047,7 +1164,11 @@ impl WorkflowDagExecutor {
                 if let Some(sub_val) = data.get("data").or_else(|| data.get("workflowData")) {
                     if let Ok(sub_graph) = WorkflowGraph::from_json(sub_val) {
                         let target_input_id = incoming_target_handle.and_then(|th| {
-                            th.split("-input-").nth(1).or(if !th.is_empty() { Some(th) } else { None })
+                            th.split("-input-").nth(1).or(if !th.is_empty() {
+                                Some(th)
+                            } else {
+                                None
+                            })
                         });
 
                         let entry_block_id = data
@@ -1057,7 +1178,9 @@ impl WorkflowDagExecutor {
                                 if let Some(tid) = target_input_id {
                                     inputs
                                         .iter()
-                                        .find(|item| item.get("id").and_then(|v| v.as_str()) == Some(tid))
+                                        .find(|item| {
+                                            item.get("id").and_then(|v| v.as_str()) == Some(tid)
+                                        })
                                         .or_else(|| inputs.first())
                                 } else {
                                     inputs.first()
@@ -1070,20 +1193,34 @@ impl WorkflowDagExecutor {
                         if let Some(outputs) = data.get("outputs").and_then(|v| v.as_array()) {
                             for out_item in outputs {
                                 if let Some(out_id) = out_item.get("id").and_then(|v| v.as_str()) {
-                                    if let Some(handle_id) = out_item.get("handleId").and_then(|v| v.as_str()) {
+                                    if let Some(handle_id) =
+                                        out_item.get("handleId").and_then(|v| v.as_str())
+                                    {
                                         if !handle_id.is_empty() {
-                                            package_outputs.insert(handle_id.to_string(), out_id.to_string());
-                                        } else if let Some(block_id) = out_item.get("blockId").and_then(|v| v.as_str()) {
-                                            package_outputs.insert(format!("{}-output-1", block_id), out_id.to_string());
+                                            package_outputs
+                                                .insert(handle_id.to_string(), out_id.to_string());
+                                        } else if let Some(block_id) =
+                                            out_item.get("blockId").and_then(|v| v.as_str())
+                                        {
+                                            package_outputs.insert(
+                                                format!("{}-output-1", block_id),
+                                                out_id.to_string(),
+                                            );
                                         }
-                                    } else if let Some(block_id) = out_item.get("blockId").and_then(|v| v.as_str()) {
-                                        package_outputs.insert(format!("{}-output-1", block_id), out_id.to_string());
+                                    } else if let Some(block_id) =
+                                        out_item.get("blockId").and_then(|v| v.as_str())
+                                    {
+                                        package_outputs.insert(
+                                            format!("{}-output-1", block_id),
+                                            out_id.to_string(),
+                                        );
                                     }
                                 }
                             }
                         }
 
-                        let sub_executor = WorkflowDagExecutor::new(sub_graph, Arc::clone(&self.backend));
+                        let sub_executor =
+                            WorkflowDagExecutor::new(sub_graph, Arc::clone(&self.backend));
                         let (sub_state, out_branch) = sub_executor
                             .execute_with_io(
                                 Some(state.clone()),
@@ -1104,7 +1241,10 @@ impl WorkflowDagExecutor {
             }
             "webhook" => {
                 let url = data.get("url").and_then(|v| v.as_str()).unwrap_or("");
-                let method = data.get("method").and_then(|v| v.as_str()).unwrap_or("POST");
+                let method = data
+                    .get("method")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("POST");
                 let body = data.get("body").cloned().unwrap_or(Value::Null);
 
                 let client = reqwest::Client::new();
@@ -1125,7 +1265,10 @@ impl WorkflowDagExecutor {
         }
     }
 
-    fn parse_target_selector(data: &Value, state: &ExecutionState) -> Result<(String, usize), String> {
+    fn parse_target_selector(
+        data: &Value,
+        state: &ExecutionState,
+    ) -> Result<(String, usize), String> {
         let raw = data
             .get("selector")
             .or_else(|| data.get("elementSelector"))
@@ -1154,14 +1297,22 @@ impl WorkflowDagExecutor {
     }
 
     fn assign_extracted_data(data: &Value, val: Value, state: &mut ExecutionState) {
-        if data.get("assignVariable").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("assignVariable")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             if let Some(var_name) = data.get("variableName").and_then(|v| v.as_str()) {
                 if !var_name.is_empty() {
                     state.set_variable(var_name, val.clone());
                 }
             }
         }
-        if data.get("saveData").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("saveData")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             if let Some(col_name) = data.get("dataColumn").and_then(|v| v.as_str()) {
                 if !col_name.is_empty() {
                     state.add_data_to_column(col_name, val);
@@ -1179,7 +1330,10 @@ impl WorkflowDagExecutor {
         for (idx, item) in conds_arr.iter().enumerate() {
             let cond_type = item.get("type").and_then(|v| v.as_str()).unwrap_or("==");
             let val_a = item.get("value").cloned().unwrap_or(Value::Null);
-            let val_b = item.get("compareValue").cloned().unwrap_or(state.prev_block_data.clone());
+            let val_b = item
+                .get("compareValue")
+                .cloned()
+                .unwrap_or(state.prev_block_data.clone());
 
             let is_match = match cond_type {
                 "==" | "eq" => val_a == val_b,
@@ -1198,7 +1352,10 @@ impl WorkflowDagExecutor {
             };
 
             if is_match {
-                let out_id = item.get("id").and_then(|v| v.as_str()).map(|s| s.to_string());
+                let out_id = item
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
                 return out_id.unwrap_or_else(|| (idx + 1).to_string());
             }
         }
@@ -1228,6 +1385,12 @@ pub mod tests {
         }
     }
 
+    impl Default for InMemoryMockBackend {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     #[async_trait]
     impl BrowserBackend for InMemoryMockBackend {
         async fn navigate(&self, url: &str) -> Result<(), String> {
@@ -1247,7 +1410,10 @@ pub mod tests {
             Ok(self.url.lock().unwrap().clone())
         }
         async fn click_at_index(&self, selector: &str, index: usize) -> Result<(), String> {
-            self.clicks.lock().unwrap().push((selector.to_string(), index));
+            self.clicks
+                .lock()
+                .unwrap()
+                .push((selector.to_string(), index));
             Ok(())
         }
         async fn hover_at_index(&self, _selector: &str, _index: usize) -> Result<(), String> {
@@ -1261,7 +1427,10 @@ pub mod tests {
             _clear: bool,
             _direct: bool,
         ) -> Result<(), String> {
-            self.typed.lock().unwrap().push((selector.to_string(), index, text.to_string()));
+            self.typed
+                .lock()
+                .unwrap()
+                .push((selector.to_string(), index, text.to_string()));
             Ok(())
         }
         async fn press_key(&self, _key: &str) -> Result<(), String> {
@@ -1303,7 +1472,11 @@ pub mod tests {
             Ok(selector != "#missing")
         }
         async fn count_elements(&self, selector: &str) -> Result<usize, String> {
-            if selector == ".item" { Ok(3) } else { Ok(1) }
+            if selector == ".item" {
+                Ok(3)
+            } else {
+                Ok(1)
+            }
         }
         async fn manipulate_form_element(
             &self,
@@ -1325,7 +1498,12 @@ pub mod tests {
         async fn set_cookie(&self, _cookie: Value) -> Result<bool, String> {
             Ok(true)
         }
-        async fn delete_cookies(&self, _name: &str, _url: Option<&str>, _domain: Option<&str>) -> Result<(), String> {
+        async fn delete_cookies(
+            &self,
+            _name: &str,
+            _url: Option<&str>,
+            _domain: Option<&str>,
+        ) -> Result<(), String> {
             Ok(())
         }
         async fn evaluate(&self, _script: &str) -> Result<Value, String> {
@@ -1357,7 +1535,10 @@ pub mod tests {
         let mock_backend = Arc::new(InMemoryMockBackend::new());
         let executor = WorkflowDagExecutor::new(graph, mock_backend.clone());
 
-        let res = executor.execute(None, CancellationToken::new()).await.unwrap();
+        let res = executor
+            .execute(None, CancellationToken::new())
+            .await
+            .unwrap();
         assert_eq!(*mock_backend.url.lock().unwrap(), "https://example.com");
         let clicks = mock_backend.clicks.lock().unwrap();
         assert_eq!(clicks.len(), 1);
@@ -1385,7 +1566,10 @@ pub mod tests {
         let mut initial_state = ExecutionState::new();
         initial_state.set_variable("query", Value::String("Specter Anti-Detect".to_string()));
 
-        let _ = executor.execute(Some(initial_state), CancellationToken::new()).await.unwrap();
+        let _ = executor
+            .execute(Some(initial_state), CancellationToken::new())
+            .await
+            .unwrap();
         let typed = mock_backend.typed.lock().unwrap();
         assert_eq!(typed.len(), 1);
         assert_eq!(typed[0].2, "Specter Anti-Detect");
@@ -1413,7 +1597,10 @@ pub mod tests {
         let mock_backend = Arc::new(InMemoryMockBackend::new());
         let executor = WorkflowDagExecutor::new(graph, mock_backend.clone());
 
-        let _ = executor.execute(None, CancellationToken::new()).await.unwrap();
+        let _ = executor
+            .execute(None, CancellationToken::new())
+            .await
+            .unwrap();
         let clicks = mock_backend.clicks.lock().unwrap();
         assert_eq!(clicks.len(), 3);
         assert_eq!(clicks[0].1, 0);
@@ -1540,12 +1727,17 @@ pub mod tests {
         let mock_backend = Arc::new(InMemoryMockBackend::new());
         let executor = WorkflowDagExecutor::new(graph, mock_backend.clone());
 
-        let state = executor.execute(None, CancellationToken::new()).await.unwrap();
-        assert_eq!(*mock_backend.url.lock().unwrap(), "https://auth.example.com");
+        let state = executor
+            .execute(None, CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            *mock_backend.url.lock().unwrap(),
+            "https://auth.example.com"
+        );
         assert_eq!(
             state.variables.get("authResult"),
             Some(&Value::String("fallback_taken".to_string()))
         );
     }
 }
-
