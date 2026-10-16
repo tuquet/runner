@@ -108,6 +108,113 @@ impl AutomaDriver {
 
         Ok(manifest)
     }
+
+    /// Executes an Automa workflow directly in-process via Native Rust CDP `WorkflowDagExecutor`
+    pub async fn execute_native_cdp(
+        &self,
+        job_id: &str,
+        automa_payload: &AutomaJobPayload,
+        raw_payload: &serde_json::Value,
+        ctx: &ExecutionContext,
+        start_time: Instant,
+    ) -> Option<Result<JobResult, String>> {
+        let port_opt = raw_payload
+            .get("debuggingPort")
+            .or_else(|| raw_payload.get("debugging_port"))
+            .and_then(|v| v.as_u64())
+            .map(|p| p as u16);
+
+        let user_data_dir_opt = raw_payload
+            .get("userDataDir")
+            .or_else(|| raw_payload.get("user_data_dir"))
+            .and_then(|v| v.as_str())
+            .map(std::path::PathBuf::from);
+
+        if port_opt.is_none() && user_data_dir_opt.is_none() {
+            return None;
+        }
+
+        let wf_cfg = automa_payload.resolved_workflow_config();
+        let wf_val = if let Some(data) = wf_cfg.data {
+            data
+        } else if !wf_cfg.path.is_empty() {
+            match tokio::fs::read_to_string(&wf_cfg.path).await {
+                Ok(content) => match serde_json::from_str(&content) {
+                    Ok(v) => v,
+                    Err(e) => return Some(Err(format!("Failed to parse workflow JSON '{}': {}", wf_cfg.path, e))),
+                },
+                Err(e) => return Some(Err(format!("Failed to read workflow file '{}': {}", wf_cfg.path, e))),
+            }
+        } else {
+            return None;
+        };
+
+        let graph = match crate::drivers::cdp::WorkflowGraph::from_json(&wf_val) {
+            Ok(g) => g,
+            Err(e) => return Some(Err(format!("Invalid workflow graph: {}", e))),
+        };
+
+        ctx.emit_log(
+            LogChannel::System,
+            "Connecting to Antidetect Chromium via native CDP (Zero-Extension Stealth)...",
+        );
+
+        let cdp_session = match crate::drivers::cdp::CdpSession::connect_auto(
+            port_opt,
+            user_data_dir_opt.as_deref(),
+        )
+        .await
+        {
+            Ok(s) => std::sync::Arc::new(s),
+            Err(e) => return Some(Err(format!("Failed to connect CDP session: {}", e))),
+        };
+
+        let mut initial_state = crate::drivers::cdp::ExecutionState::new();
+        if let Some(vars) = wf_cfg.variables {
+            for (k, v) in vars {
+                initial_state.set_variable(&k, v);
+            }
+        }
+
+        let executor = crate::drivers::cdp::WorkflowDagExecutor::new(graph, cdp_session);
+        match executor.execute(Some(initial_state), ctx.cancel_token.clone()).await {
+            Ok(final_state) => {
+                let duration_ms = start_time.elapsed().as_millis() as u64;
+                for step in &final_state.step_logs {
+                    ctx.emit_log(
+                        LogChannel::Stdout,
+                        &format!("[{}] {} ({}ms)", step.status, step.name, step.duration_ms.unwrap_or(0)),
+                    );
+                }
+
+                let tables: Vec<serde_json::Value> = final_state
+                    .table
+                    .into_iter()
+                    .map(serde_json::Value::Object)
+                    .collect();
+
+                let out = AutomaJobOutput {
+                    workflow_id: if wf_cfg.path.is_empty() { None } else { Some(wf_cfg.path) },
+                    status: "completed".to_string(),
+                    duration_ms,
+                    tables: Some(tables),
+                    variables: Some(final_state.variables),
+                    step_logs: Some(final_state.step_logs),
+                    artifacts: None,
+                };
+                let out_json = serde_json::to_value(out).ok();
+                Some(Ok(JobResult::success(job_id.to_string(), duration_ms, out_json)))
+            }
+            Err(e) if e.contains("cancelled") => {
+                let duration_ms = start_time.elapsed().as_millis() as u64;
+                Some(Ok(JobResult::cancelled(job_id.to_string(), duration_ms)))
+            }
+            Err(e) => {
+                let duration_ms = start_time.elapsed().as_millis() as u64;
+                Some(Ok(JobResult::failure(job_id.to_string(), Some(1), duration_ms, e)))
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -125,6 +232,15 @@ impl ExecutionDriver for AutomaDriver {
 
         // 1. Extract typed Automa payload with full fallback to loose JSON
         let automa_payload: AutomaJobPayload = serde_json::from_value(job.payload.clone()).unwrap_or_default();
+
+        // 1b. If direct CDP port or user_data_dir is provided, execute in-process via WorkflowDagExecutor
+        if let Some(res) = self
+            .execute_native_cdp(job.id.as_str(), &automa_payload, &job.payload, &ctx, start_time)
+            .await
+        {
+            return res;
+        }
+
         let target = automa_payload.target.as_deref().unwrap_or("automa");
         let bin_name = self.resolve_automa_bin(target);
 

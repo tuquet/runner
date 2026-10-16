@@ -5,7 +5,7 @@ pub mod protocol;
 pub mod transport;
 
 pub use core::engine::RunnerEngine;
-pub use drivers::cdp::{CdpConnection, CdpSession};
+pub use drivers::cdp::{BrowserBackend, CdpConnection, CdpSession, ExecutionState, WorkflowDagExecutor, WorkflowGraph};
 pub use drivers::ExecutionDriver;
 pub use protocol::handshake::{AgentAuthStatus, AgentManifest, AutomaManifest, BrowserManifest};
 pub use protocol::schema::{

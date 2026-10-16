@@ -219,6 +219,76 @@ impl HumanInteractionEngine {
         Ok(())
     }
 
+    /// Inserts text directly via CDP Input.insertText (when delay == 0)
+    pub async fn insert_text(&self, text: &str) -> Result<(), String> {
+        self.connection
+            .send_command("Input.insertText", json!({ "text": text }))
+            .await?;
+        Ok(())
+    }
+
+    /// Dispatches a hardware-level key press (supports special keys like Enter, Tab, Escape, Backspace, etc.)
+    pub async fn press_key(&self, key: &str) -> Result<(), String> {
+        let (key_name, code, vk, text_opt) = Self::map_key_definition(key);
+
+        let mut down_params = json!({
+            "type": if text_opt.is_some() { "keyDown" } else { "rawKeyDown" },
+            "key": key_name,
+            "code": code,
+            "windowsVirtualKeyCode": vk,
+            "nativeVirtualKeyCode": vk,
+        });
+        if let Some(txt) = text_opt {
+            down_params["text"] = json!(txt);
+            down_params["unmodifiedText"] = json!(txt);
+        }
+
+        self.connection
+            .send_command("Input.dispatchKeyEvent", down_params)
+            .await?;
+
+        let key_hold = self.rng.gen_range_u64(20, 45);
+        tokio::time::sleep(Duration::from_millis(key_hold)).await;
+
+        self.connection
+            .send_command(
+                "Input.dispatchKeyEvent",
+                json!({
+                    "type": "keyUp",
+                    "key": key_name,
+                    "code": code,
+                    "windowsVirtualKeyCode": vk,
+                    "nativeVirtualKeyCode": vk,
+                }),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub fn map_key_definition(key: &str) -> (&str, &str, u32, Option<&str>) {
+        match key {
+            "Enter" | "Return" => ("Enter", "Enter", 13, Some("\r")),
+            "Tab" => ("Tab", "Tab", 9, None),
+            "Escape" | "Esc" => ("Escape", "Escape", 27, None),
+            "Backspace" => ("Backspace", "Backspace", 8, None),
+            "Delete" => ("Delete", "Delete", 46, None),
+            "Space" | " " => (" ", "Space", 32, Some(" ")),
+            "ArrowUp" => ("ArrowUp", "ArrowUp", 38, None),
+            "ArrowDown" => ("ArrowDown", "ArrowDown", 40, None),
+            "ArrowLeft" => ("ArrowLeft", "ArrowLeft", 37, None),
+            "ArrowRight" => ("ArrowRight", "ArrowRight", 39, None),
+            "Home" => ("Home", "Home", 36, None),
+            "End" => ("End", "End", 35, None),
+            "PageUp" => ("PageUp", "PageUp", 33, None),
+            "PageDown" => ("PageDown", "PageDown", 34, None),
+            other => {
+                let vk = other.chars().next().map(|c| c.to_ascii_uppercase() as u32).unwrap_or(0);
+                (other, other, vk, Some(other))
+            }
+        }
+    }
+
     /// Smooth human-like mouse wheel scrolling with deceleration momentum
     pub async fn scroll(&self, delta_x: f64, delta_y: f64) -> Result<(), String> {
         let (cur_x, cur_y) = { *self.cursor_pos.read().await };
@@ -276,5 +346,19 @@ mod tests {
             let int_val = rng.gen_range_u64(5, 20);
             assert!((5..20).contains(&int_val));
         }
+    }
+
+    #[test]
+    fn test_map_key_definition() {
+        let (key, code, vk, txt) = HumanInteractionEngine::map_key_definition("Enter");
+        assert_eq!(key, "Enter");
+        assert_eq!(code, "Enter");
+        assert_eq!(vk, 13);
+        assert_eq!(txt, Some("\r"));
+
+        let (key2, _, vk2, txt2) = HumanInteractionEngine::map_key_definition("Escape");
+        assert_eq!(key2, "Escape");
+        assert_eq!(vk2, 27);
+        assert_eq!(txt2, None);
     }
 }
